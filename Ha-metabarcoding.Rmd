@@ -46,8 +46,6 @@ lapply(pack.list, require, character.only=T)
 sessionInfo()
 ```
 
-## Description
-
 DNA metabarcoding data of Harmonia axyridis gut contents were generated in 3 different sequencing runs. 
 
 * Sequencing run from August 2017 contained gut contents of _H. axyridis_ samples from The Lawns and Thwaite (May 2017) sequenced without the use of blocking primers. COIAug17 includes gut contents of Harmonia axyridis (N=50) sequenced in August 2017 WITHOUT using Blocking primers. The samples were collected from `The Lawns` and from `Thwaite Gardens` (Yorkshire) in May 2017.
@@ -55,9 +53,7 @@ DNA metabarcoding data of Harmonia axyridis gut contents were generated in 3 dif
 * COIDvAug18 and COIHaAug18 include gut contents of Harmonia axyridis sequenced WITH Blocking primers. The samples were collected from Yorkshire and Oxfordshire sites in May and October 2017. COIHaAug18 includes community DNA metabarcoding as well.
 
 # 1. Initial quality control
-## Input files and first overview
-
-We load the 3 different files into three different data frames
+Input files and first overview. We load the 3 different files into three different data frames
 
 ```{r input data}
 ha.aug17 = read.csv("data/CO1Aug17-merge-forwonly-nonchimera-c97-cov2_id97-by-taxonomy-readcounts.blast.csv", header=T)
@@ -129,7 +125,7 @@ ha1.aug18=ha1.aug18[,!(colnames(ha1.aug18)%in% 'X.OTU.ID')]
 ha2.aug18=ha2.aug18[,!(colnames(ha2.aug18)%in% 'X.OTU.ID')]
 ```
 
-## Initial overview
+#2. Initial overview
 
 The data were generated from 3 separate sequencing runs, therefore we want to check the read depth across the 3 runs. The first two sequencing runs (structured reflected into the data frames) contain extra samples which we are not interested, while the last data frame contains only samples regarding _Harmonia axyridis_ and doesn't need to be manipulated. We carry over only the plates that include _H. axyridis_ samples, making sure we transfer also all the Positive and Negative samples from each data frame. These will be used to calculate the filter threshold for each frame indipendently further down the analysis.
 
@@ -144,7 +140,7 @@ ha1.reads = subset(ha1.aug18[,c(1:8,115:117,169:231,324:329,337:339,347:351)])
 ha2.reads = ha2.aug18
 ```
 
-## Read depth per sample
+Read depth per sample.
 
 Since the data were generated into three separate sequencing runs, we check the read depth of all the samples across the three separate frames. We first remove all empty samples before calculating mean and standard deviation values across all three separate frames.
 Total number of samples were respectively, `ha.reads` (sequencing run from Aug17) Ntot=354; `ha1.reads` (first run from Aug18) Ntot=339; `ha2.reads` (second run from Aug18) Ntot=351.
@@ -180,7 +176,7 @@ t.test(colSums(ha.reads), colSums(ha2.reads), var.equal = T)
 t.test(colSums(ha1.reads), colSums(ha2.reads), var.equal =T)
 ```
 
-## Read depth threshold
+Read depth threshold
 
 To remove low coverage samples we decide to retain samples that contained N reads greater than mean-2sd. This was possible for only the data from the run done in August 2017 (in `ha.reads` data frame); while for the other two data frames we could apply only the mean-sd threshold.
 
@@ -210,7 +206,7 @@ boxplot(colSums(ha.cover), colSums(ha1.cover), colSums(ha2.cover), ylab="N reads
 (count(colSums(ha2.cover) > 0)[2]/count(colSums(ha2.reads) > 0)[2])*100
 ```
 
-## Removal of untarget taxa
+Removal of untarget taxa
 
 We check first presence of unwanted taxa and high rank assignment into our data frames. In particular `unassigned` reads, and higher taxa such as unknown `Eukaryota`, `Fungi` and `Bacteria` are going to be removed since they won't be informative at all further downstream. To make the process efficient, we first remove all taxa that have no reads at all as a consequence of previous quality control steps, we then check for the presence of unwanted taxa.
 
@@ -247,8 +243,8 @@ ha2.clean = ha2.clean[!(rownames(ha2.clean)%in% disc.ha2),]
 
 We retained approx. 93.6%, 90% and 78.7% of the initial N reads. After having removed the undesired taxa, we can now extract the information from the `Positive` samples, and calculate the contamination thresholds for each data set. We need to extract the positive samples from all frames. In the sequencing run done in August 2017 (`ha.clean` frame) the Positive taxa used was _Osmia bicornis_, while in both sequencing runs from August 2018 (`ha1.clean` and `ha2.clean` frames) the positive taxa used was _Lumbricus rubellus_.
 
-# Calculating contamination threshold
-## First data frame
+#3. Calculating contamination threshold
+First data frame
 
 First data frame containes data from the sequencing run from August 2017, which includesgut content samples of _Harmonia axyridis_ from Lawns (N=25) and Thwaite Gardens (N=25) collected in May 2017 amplified without the use of blocking primers. To calculate the contamination threshold we decided to account for all laboratory contaminations (e.g. Human DNA) in our `POSITIVE` samples. In the first data frame we see that the majority of the contamination in the `POSITIVE` sample comes from _Harmonia axyridis_ (~62% of the reads in the positive samples). We then decided to focus on the levels of other known contaminations, which in this case is _Homo sapiens_.
 
@@ -302,7 +298,7 @@ ha.pre$pcr = "no-blocking"
 ha.post$pcr = "no-blocking"
 ```
 
-## Second data frame
+Second data frame
 
 The second data frame includes data from the first sequencing run from August 2018, which contains _H. axyridis_ gut contents samples from Oxfordshire sites collected in May 2017.
 
@@ -365,7 +361,7 @@ ha18.1.pre$pcr = "with blocking"
 ha18.1.post$pcr = "with blocking"
 ```
 
-## Third data frame
+Third data frame
 
 The last data frame includes data from the second from August 2018 containing _H. axyridis_ contents samples from Yorkshire sites collected in May 2017, plus the Oxfordshire and Yorkshire sites collected in October 2017. This frame contains also all the community tissue samples.
 
@@ -435,8 +431,8 @@ ha18.2.pre$pcr = "with blocking"
 ha18.2.post$pcr = "with blocking"
 ```
 
-# 2. Blocking primers
-## Testing the use of blocking primers
+#4. Blocking primers
+Testing the use of blocking primers
 
 We test here the effects of using blocking primers in gut contents analysis of _Harmonia axyridis_ in the UK. In our case we developed Harmonia-specific blocking primers with a 3C-3' end tail. These were added during the first PCR of both the sequencing runs done in August 2018. No blocking primer was added in the sequencing run from August 2017. In total we have same N=50 samples from May 2017 collected in Lawns and Thwaite Gardens that were sequenced twice in two separate runs, one without and one with blocking primers. First we extract the samples from their respective data frames, then we investigate the difference across these 50 samples that were sequenced with and without blocking primers (Ntot = 100).
 
@@ -617,7 +613,7 @@ c<-ggplot(full_blk_melt[full_blk_melt$specie_type %in% "predator",],(aes(pcr, va
 grid.arrange(arrangeGrob(c,a, ncol=2), arrangeGrob(b), nrow=2, left="Sample ID")
 ```
 
-# 3. Detection of prey taxa
+#5. Detection of prey taxa
 
 We want to investigate now the temporal and spatial networks we could detectd from _Harmonia axyridis_ gut contents. At this stage we will use only the datasets that were sequenced with blocking primers, and to better investigate the prey DNA we detected, we decided to remove the predator from our datasets. 
 We start by exploring the data splitting them by sampling area (Oxfordshire or Yorkshire), by sampling time (May or October), and by sample type (gut contents or community).
@@ -956,7 +952,7 @@ ggiNEXT(comms_inext) +
 ```
 
 
-# PERMANOVA and Rarefaction curves on gut contents.
+PERMANOVA and Rarefaction curves on gut contents.
 
 ```{r joining guts reads, include=F}
 ratio.guts = as.data.frame(reads.guts)
@@ -1030,7 +1026,26 @@ ggiNEXT(raref.guts_inext) +
   facet_grid(order~., labeller=as_labeller(strip_lab), scales="free")
 ```
 
-## Network of interactions
+```{r diet/niche breath index}
+niche.ratio = as.data.frame(ratio.guts)
+niche.ratio[,1:15][niche.ratio[,1:15] > 0] <- 1
+
+niche.ratio = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr"))] %>% group_by(time, county, site) %>% summarise_all(funs(sum)))
+
+head(niche.ratio)
+
+#niche.ratio = niche.ratio[,!(colnames(niche.ratio) %in% "Dinocampus_coccinellae")]
+
+nrow(niche.ratio)
+
+niche.null.model.test = niche_null_model(speciesData=niche.ratio[,3:ncol(niche.ratio)], algo="ra2", metric="pianka", suppressProg=T, nReps=5000)
+
+summary(niche.null.model.test)
+plot(niche.null.model.test,type="hist")
+plot(niche.null.model.test,type="niche")
+```
+
+#6. Network of interactions
 
 Tripartite network
 
@@ -1064,49 +1079,32 @@ rownames(web.dc)
 
 ```{r}
 plotweb(web.ha, y.width.low=0.1, y.width.high=0.05,	y.lim=c(0,3), adj.high=c(0.5,1.5), high.lab.dis=0, low.lablength=5, col.high="white", low.lab.dis=0.03, low.spacing=0.02, col.interaction=c("orange","yellow","blue","red"))
-plotweb(web.dc, y.width.low=0.05, y.width.high=0.1, low.y=1.5, high.y=2.5, low.lab.dis=0, low.spacing=0.05, adj.low=c(0.5,1.1), low.plot=F, arrow="down", add=T, empty=F, col.interaction=c("orange","yellow","blue","red"))
+plotweb(web.dc, y.width.low=0.05, y.width.high=0.1, low.y=1.5, high.y=2.5, low.lab.dis=0, low.spacing=0.166, adj.low=c(0.5,1.1), low.plot=F, arrow="down", add=T, empty=F, col.interaction=c("orange","yellow","blue","red"))
 ```
 
+#7. Community composition.
 
-## TO CHECK ABUNDANCE OF COMMUNITY AND SHARED TAXA ACROSS COMMS AND GUTS!
+```{r}
 
-```{r tripartite with abundance comms test, include=F}
-
-#abund.guts
-#test.web = as.data.frame(abund.comms)
-#rownames(test.web) = c("Oxf_May-Ha","York_May-Ha","Oxf_Oct-Ha","York_Oct-Ha")
-#test.web = test.web[,-c(1:2)]
-#test.web = t(test.web)
-
-# = as.vector(test.web)
-#rownames(test.web)
-
-#web1 = abund.guts[!c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
-#web1 = web1[!c(rownames(web1)%in%"Hemiptera"),]
-
-#web2 = abund.guts[c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
-
-#str(web1)
-#str(web2)
-
-#web1[,1] = as.integer(web1[,1])
-#web1[,2] = as.integer(web1[,2])
-#web1[,3] = as.integer(web1[,3])
-#web1[,4] = as.integer(web1[,4])
-
-#web2 = as.data.frame(t(web2))
-#web2[,1] = as.integer(web2[,1])
-
-#web1 = data.matrix(web1)
-#web2 = data.matrix(web2)
-
-#plotweb(web1, y.width.low=0.1, y.width.high=0.05,	y.lim=c(0,3), adj.high=c(0.5,1.5), high.lab.dis=0, low.lablength=5, col.high="white", low.lab.dis=0.03, low.spacing=0.02, low.abun = test.web)
-#plotweb(web2, y.width.low=0.05, y.width.high=0.1, low.y=1.5, high.y=2.5, low.lab.dis=0, low.spacing=0.166, adj.low=c(0.5,1.1), low.plot=FALSE, arrow="down", add=TRUE)
 ```
 
+```{r log session info}
+sink("log_session_analysis.txt")
+sessionInfo()
+citation()
+sink()
+```
+
+```{r packages citation}
+sink("packages_citations.txt")
+for (p in pack.list){
+ print(citation(p))
+}
+sink()
+```
 
 ```{r end}
-print("End of main body")
+print("end")
 ```
 
 # Supplementary material
@@ -1206,55 +1204,6 @@ pn = grep("POS|NEG", rownames(ha2.clean))
 ha2.clean = ha2.clean[-pn,]
 ```
 
-## EXTRA
-
-```{r ggnetwork}
-### NEED TO CREATE THE NETWORK FROM THE DATA FRAMES
-#test = as.data.frame(ratio.guts)
-#test[,1:15][test[,1:15] > 0] <- 1
-
-#test_1 = as.data.frame(test[,!c(colnames(test) %in% c("pcr","sample_type","sample_id"))] %>% group_by(site,time,county) %>% summarise_all(funs(sum)))
-
-#test_1 = test[,!c(colnames(test) %in% c("pcr","sample_type","sample_id"))]
-
-#str(test_1)
-#colnames(test_1)
-#nrow(test_1)
-#length(test_1$site)
-#length(test_1$county)
-#length(test_1$time)
-
-#info_site = test_1$site
-#info_time = test_1$time
-#info_county = test_1$county
-#info_weight = c(test_1[1:nrow(test_1),4:ncol(test_1)])
-
-#rownames(test_1) = paste(test_1$site, test_1$time, sep="_")
-
-#test_1 = test_1[,!c(colnames(test_1) %in% c("site","time","county"))]
-
-#str(as.matrix(test_1))
-#test <- network(as.matrix(test_1),directed=T)
-#ggnetwork(test)
-
-#test %v% "time" <- info_time
-#test %v% "county" <- info_county
-#test %v% "site" <- info_site
-#test %v% "importance" <- info_weight
-#ggnetwork(test)
-
-#e <- network.edgecount(test)
-#set.edge.attribute(test, "time", test_1$time, e)
-#set.edge.attribute(test, "site", test_1$site)
-#set.edge.attribute(test, "county", test_1$county)
-
-#ggnetwork(test, layout = "fruchtermanreingold", cell.jitter = 0.75)
-#ggnetwork(test, layout = "target", niter = 100)
-
-#ggplot(test, aes(x=x,y=y,xend=xend,yend=yend)) +
-#  geom_edges() +
-#  geom_nodes() +
-#  geom_nodelabel(aes(label = vertex.names)) +
-#  facet_grid(time~county)
-#  theme_blank() #+ theme(legend.position = "none")
+```{r end}
+print("end supp. materials")
 ```

@@ -1,0 +1,1260 @@
+---
+title: "Harmonia axyridis DNA metabarcoding of gut contents"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r knitr setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r environment setup, include=F}
+## R(v3.5.1 - Win)
+#.libPaths(c("D:\\Dropbox\\PhD Hull\\PhD docs\\Thesis\\R_stats\\rlib3.5_win", .libPaths("D:\\Dropbox\\PhD Hull\\PhD docs\\Thesis\\R_stats\\rlib3.5_win")))
+
+## R(v3.5.1 - OSX)
+#.libPaths(c("D:\\Dropbox\\PhD Hull\\PhD docs\\Thesis\\R_stats\\rlib3.5_osx", .libPaths("D:\\Dropbox\\PhD Hull\\PhD docs\\Thesis\\R_stats\\rlib3.5_osx")))
+
+## R(v3.5.1 - ubuntu)
+.libPaths(c("/home/mb/Dropbox/PhD Hull/PhD docs/Thesis/R_stats/rlib3.5_unix", .libPaths("/home/mb/Dropbox/PhD\ Hull/PhD\ docs/Thesis/R_stats/rlib3.5_unix")))
+```
+
+```{r directory, include=FALSE}
+dir()
+rm(list=ls())
+ls()
+```
+
+## Setting working directory and packages
+
+The analysis was done on R (R Core Team, 2018) using the following environment and packages.
+
+```{r packages loading, include=F}
+pack.list = c("aod","bipartite","devtools","dplyr","EcoSimR","ggplot2","gplots","gridExtra","iNEXT","lattice","lme4","lmtest","MASS","mgcv","network","plyr","reshape2","stringi","UpSetR","vegan")
+new.packages = pack.list[!(pack.list %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, repos="https://cran.rstudio.com")
+lapply(pack.list, require, character.only=T)
+
+
+# to install "libssl-dev"
+#"igraph","bipartite","phyloseq","ggnetwork", "AED","msa","zoo"
+```
+
+
+```{r session info}
+sessionInfo()
+```
+
+## Description
+
+DNA metabarcoding data of Harmonia axyridis gut contents were generated in 3 different sequencing runs. 
+
+* Sequencing run from August 2017 contained gut contents of _H. axyridis_ samples from The Lawns and Thwaite (May 2017) sequenced without the use of blocking primers. COIAug17 includes gut contents of Harmonia axyridis (N=50) sequenced in August 2017 WITHOUT using Blocking primers. The samples were collected from `The Lawns` and from `Thwaite Gardens` (Yorkshire) in May 2017.
+
+* COIDvAug18 and COIHaAug18 include gut contents of Harmonia axyridis sequenced WITH Blocking primers. The samples were collected from Yorkshire and Oxfordshire sites in May and October 2017. COIHaAug18 includes community DNA metabarcoding as well.
+
+# 1. Initial quality control
+## Input files and first overview
+
+We load the 3 different files into three different data frames
+
+```{r input data}
+ha.aug17 = read.csv("data/CO1Aug17-merge-forwonly-nonchimera-c97-cov2_id97-by-taxonomy-readcounts.blast.csv", header=T)
+ha1.aug18 = read.csv("data/CO1DvAug18-merged-forwonly_nonchimera-c97-cov2-id97_by-taxonomy-readcounts.csv", header=T)
+ha2.aug18 = read.csv("data/CO1HaAug18-merged-forwonly_nonchimera_c97-cov2-id97_by-taxonomy-readcounts.csv", header=T)
+```
+
+Before exploring the data we need to extract the taxonomic information contained in the last column of each file. We save this information in 3 separate `.csv` files.
+
+```{r taxonomy file, include=T}
+## Custom function to format the taxonomy column
+
+format_taxonomy <- function(input_data){
+  for (t in as.data.frame(input_data)){
+    n = gsub("\\['|\\']", "", t)
+    i = gsub("\\'", "", n)
+    taxa.split = data.frame(cbind(i))
+  }
+  return(taxa.split)
+}
+
+## First input file
+taxa.aug17 = ha.aug17$taxomomy
+ha.aug17 = ha.aug17[,!(colnames(ha.aug17)%in% 'taxomomy')]
+
+taxa.split17=format_taxonomy(taxa.aug17)
+taxa.split17=data.frame(taxa.split17)
+
+## Second input file
+taxa1.aug18 = ha1.aug18$taxomomy
+ha1.aug18 = ha1.aug18[,!(colnames(ha1.aug18)%in% 'taxomomy')]
+
+taxa1.split18=format_taxonomy(taxa1.aug18)
+taxa1.split18=data.frame(taxa1.split18)
+
+
+## Third input file
+taxa2.aug18 = ha2.aug18$taxomomy
+ha2.aug18 = ha2.aug18[,!(colnames(ha2.aug18)%in% 'taxomomy')]
+
+taxa2.split18=format_taxonomy(taxa2.aug18)
+taxa2.split18=data.frame(taxa2.split18)
+
+## Writing taxonomy outputs
+write.csv(taxa.split17, "R_outputs/CO1HaAug17_taxonomy.csv")
+write.csv(taxa1.split18, "R_outputs/CO1Ha1Aug18_taxonomy.csv")
+write.csv(taxa2.split18, "R_outputs/CO1Ha2Aug18_taxonomy.csv")
+```
+
+Each initial input file was generated as the result of two separate operations. First DNA centroids were assigned against reference database, the reads that resulted unassigned were then assigned against the NCBI nt database. Each operation generated two separate files which were then merged. The following step is to remove potential duplicate taxa records that would prevent R from definying the row names as the taxa names. Because we removed the last column with the taxonomy information, we can use the whole frame; otherwise we would have needed to avoid the last column in each frame.
+
+```{r removing duplicates, include=T}
+ha.aug17 = as.data.frame(ha.aug17 %>% group_by(X.OTU.ID) %>% summarise_all(list(sum)))
+ha1.aug18 = as.data.frame(ha1.aug18 %>% group_by(X.OTU.ID) %>% summarise_all(list(sum)))
+ha2.aug18 = as.data.frame(ha2.aug18 %>% group_by(X.OTU.ID) %>% summarise_all(list(sum)))
+```
+
+We can now set up the rownames for each data frame equal to the species names, and we can remove the first column.
+
+```{r data frames rownames, include=F}
+## Setting up rownames equal to the OTU ID
+rownames(ha.aug17) = ha.aug17$X.OTU.ID
+rownames(ha1.aug18) = ha1.aug18$X.OTU.ID
+rownames(ha2.aug18) = ha2.aug18$X.OTU.ID
+
+## Removing the OTU ID column
+ha.aug17=ha.aug17[,!(colnames(ha.aug17)%in% 'X.OTU.ID')]
+ha1.aug18=ha1.aug18[,!(colnames(ha1.aug18)%in% 'X.OTU.ID')]
+ha2.aug18=ha2.aug18[,!(colnames(ha2.aug18)%in% 'X.OTU.ID')]
+```
+
+## Initial overview
+
+The data were generated from 3 separate sequencing runs, therefore we want to check the read depth across the 3 runs. The first two sequencing runs (structured reflected into the data frames) contain extra samples which we are not interested, while the last data frame contains only samples regarding _Harmonia axyridis_ and doesn't need to be manipulated. We carry over only the plates that include _H. axyridis_ samples, making sure we transfer also all the Positive and Negative samples from each data frame. These will be used to calculate the filter threshold for each frame indipendently further down the analysis.
+
+```{r extracting Harmonia samples, include=T}
+## First frame
+ha.reads = subset(ha.aug17[,c(333:402)])
+
+## Second frame
+ha1.reads = subset(ha1.aug18[,c(1:8,115:117,169:231,324:329,337:339,347:351)])
+
+## Third frame
+ha2.reads = ha2.aug18
+```
+
+## Read depth per sample
+
+Since the data were generated into three separate sequencing runs, we check the read depth of all the samples across the three separate frames. We first remove all empty samples before calculating mean and standard deviation values across all three separate frames.
+Total number of samples were respectively, `ha.reads` (sequencing run from Aug17) Ntot=354; `ha1.reads` (first run from Aug18) Ntot=339; `ha2.reads` (second run from Aug18) Ntot=351.
+
+```{r plot read depth, include=T, echo=FALSE}
+boxplot(colSums(ha.reads), colSums(ha1.reads), colSums(ha2.reads), ylab="N reads", xlab="Data frames", main = "Read depth of Harmonia metabarcoding samples", names=c("ha.reads\n(Aug17)", "ha1.reads\n(Aug18_1)", "ha2.reads\n(Aug18_2)"), las=1, cex.axis=0.8)
+```
+
+```{r mean read depth, include=F}
+ha.reads = subset(ha.reads, select=colSums(ha.reads) > 0)
+ha1.reads = subset(ha1.reads, select=colSums(ha1.reads) > 0)
+ha2.reads = subset(ha2.reads, select=colSums(ha2.reads) > 0)
+
+## Mean values
+mean(colSums(ha.reads))
+mean(colSums(ha1.reads))
+mean(colSums(ha2.reads))
+
+hist(colSums(ha.reads), breaks=15)
+hist(colSums(ha1.reads), breaks=15)
+hist(colSums(ha2.reads), breaks=15)
+```
+
+Considering our normalisation steps during the libraries preparations, we expect the read coverage per sample to be normally distributed in each run. With this in mind we tested for normality and then we tested for differences in the read depth between the different plates. The results show that all the plates were not significantly difference in regards to reads depth: `ha.reads` and `ha1.reads` (t-test: t = 0.62067, df = 142, p-value = 0.5358), `ha.reads` and `ha2.reads` (t-test: t = -0.95017, df = 407, p-value = 0.3426), `ha1.reads` and `ha2.reads` (t-test: t = -1.7813, df = 439, p-value = 0.07555).
+
+```{r reads distribution, include=T, echo=F}
+shapiro.test(colSums(ha.reads))
+shapiro.test(colSums(ha1.reads))
+shapiro.test(colSums(ha2.reads))
+
+t.test(colSums(ha.reads), colSums(ha1.reads), var.equal = T)
+t.test(colSums(ha.reads), colSums(ha2.reads), var.equal = T)
+t.test(colSums(ha1.reads), colSums(ha2.reads), var.equal =T)
+```
+
+## Read depth threshold
+
+To remove low coverage samples we decide to retain samples that contained N reads greater than mean-2sd. This was possible for only the data from the run done in August 2017 (in `ha.reads` data frame); while for the other two data frames we could apply only the mean-sd threshold.
+
+```{r read depth filter, include=T}
+cov_ha = mean(colSums(ha.reads))-(2*sd(colSums(ha.reads)))
+cov_ha1 = mean(colSums(ha1.reads))-sd(colSums(ha1.reads))
+cov_ha2 = mean(colSums(ha2.reads))-sd(colSums(ha2.reads))
+
+ha.cover = subset(ha.reads, select = colSums(ha.reads) >= cov_ha)
+ha1.cover = subset(ha1.reads, select = colSums(ha1.reads) >= cov_ha1)
+ha2.cover = subset(ha2.reads, select = colSums(ha2.reads) >= cov_ha2)
+```
+
+After this initial low coverage filter we retained 98.8%, 97.3% and 97.7% of the total number of reads, and respectively 92.8%, 73.9% and 80.2% number of samples.
+
+```{r reads survival boxplot, include=TRUE, echo=FALSE}
+boxplot(colSums(ha.cover), colSums(ha1.cover), colSums(ha2.cover), ylab="N reads", xlab="Data frames", main = "Read depth of Harmonia metabarcoding samples greater than mean-sd", names=c("ha.cover\n(Aug17)", "ha1.cover\n(Aug18_1)", "ha2.cover\n(Aug18_2)"), las=1, cex.axis=0.8, ylim=c(0,120000))
+```
+
+```{r read survival percentage, include=FALSE}
+(sum(ha.cover)/sum(ha.reads))*100
+(sum(ha1.cover)/sum(ha1.reads))*100
+(sum(ha2.cover)/sum(ha2.reads))*100
+
+(count(colSums(ha.cover) > 0)[2]/count(colSums(ha.reads) > 0)[2])*100
+(count(colSums(ha1.cover) > 0)[2]/count(colSums(ha1.reads) > 0)[2])*100
+(count(colSums(ha2.cover) > 0)[2]/count(colSums(ha2.reads) > 0)[2])*100
+```
+
+## Removal of untarget taxa
+
+We check first presence of unwanted taxa and high rank assignment into our data frames. In particular `unassigned` reads, and higher taxa such as unknown `Eukaryota`, `Fungi` and `Bacteria` are going to be removed since they won't be informative at all further downstream. To make the process efficient, we first remove all taxa that have no reads at all as a consequence of previous quality control steps, we then check for the presence of unwanted taxa.
+
+```{r remove unwanted taxa, include=TRUE, results="hide"}
+ha.clean = subset(ha.cover, subset=rowSums(ha.cover) > 0)
+ha1.clean = subset(ha1.cover, subset=rowSums(ha1.cover) > 0)
+ha2.clean = subset(ha2.cover, subset=rowSums(ha2.cover) > 0)
+
+## First frame
+disc.ha = c("unassigned")
+ha.clean = ha.clean[!(rownames(ha.clean)%in% disc.ha),]
+
+## Second frame
+disc.ha1 = c("Cyanistes_caeruleus","Parus_major","Salmo_salar",
+             "Trebouxia_aggregata","unassigned","uncultured_Jaminaea")
+ha1.clean = ha1.clean[!(rownames(ha1.clean)%in% disc.ha1),]
+
+## Third frame
+disc.ha2 = c("Columbidae","Eukaryota","Melampsora","Penicillium_sclerotiorum",
+             "Sus_scrofa","unassigned","uncultured_Jaminaea","Verticillium")
+ha2.clean = ha2.clean[!(rownames(ha2.clean)%in% disc.ha2),]
+```
+
+
+```{r retained reads and samples, include=FALSE}
+(sum(ha.clean)/sum(ha.reads))*100
+(sum(ha1.clean)/sum(ha1.reads))*100
+(sum(ha2.clean)/sum(ha2.reads))*100
+
+((sum(ha.cover)/sum(ha.reads))*100-(sum(ha.clean)/sum(ha.reads))*100)
+((sum(ha1.cover)/sum(ha1.reads))*100-(sum(ha1.clean)/sum(ha1.reads))*100)
+((sum(ha2.cover)/sum(ha2.reads))*100-(sum(ha2.clean)/sum(ha2.reads))*100)
+```
+
+We retained approx. 93.6%, 90% and 78.7% of the initial N reads. After having removed the undesired taxa, we can now extract the information from the `Positive` samples, and calculate the contamination thresholds for each data set. We need to extract the positive samples from all frames. In the sequencing run done in August 2017 (`ha.clean` frame) the Positive taxa used was _Osmia bicornis_, while in both sequencing runs from August 2018 (`ha1.clean` and `ha2.clean` frames) the positive taxa used was _Lumbricus rubellus_.
+
+# Calculating contamination threshold
+## First data frame
+
+First data frame containes data from the sequencing run from August 2017, which includesgut content samples of _Harmonia axyridis_ from Lawns (N=25) and Thwaite Gardens (N=25) collected in May 2017 amplified without the use of blocking primers. To calculate the contamination threshold we decided to account for all laboratory contaminations (e.g. Human DNA) in our `POSITIVE` samples. In the first data frame we see that the majority of the contamination in the `POSITIVE` sample comes from _Harmonia axyridis_ (~62% of the reads in the positive samples). We then decided to focus on the levels of other known contaminations, which in this case is _Homo sapiens_.
+
+```{r threshold first frame, include=T}
+## Positive samples from `ha.clean` (August 2017)
+ha.pos = ha.clean[colnames(ha.clean) == "POSTITIVE"]
+ha.pos[,]/colSums(ha.pos)
+rownames(ha.pos)
+
+ha.pre.filter = as.data.frame(t(ha.clean))
+ha.pre.filter = ha.pre.filter[,]/rowSums(ha.pre.filter)
+ha.pre.filter[is.na(ha.pre.filter)] <- 0
+
+thres =  0.001
+```
+
+We have to exclude the contamination from _Harmonia axyridis_ as that would be too high for a fixed contamination threshold and we would lose any informations about prey-predator interactions. The remaining contaminations appear to be: _Hymenoptera_ (0.468%), and _Homo sapiens_ (0.0969%). Based on the levels of these contaminations we decided to apply a threshold of 0.1%.
+
+```{r filter first frame, include=T}
+ha.post.filter = as.data.frame(ha.pre.filter)
+ha.post.filter[][ha.post.filter <= thres] <- 0
+
+ha.clean = as.data.frame(t(ha.clean))
+ha.clean[][ha.clean[,]/rowSums(ha.clean) <= thres] <- 0
+
+## Writing pre- and post-filter data to output
+write.csv(ha.clean, "R_outputs/HaAug17_cleaned_reads.csv")
+write.csv(ha.pre.filter, "R_outputs/HaAug17_pre-filter.csv")
+write.csv(ha.post.filter, "R_outputs/HaAug17_post-filter.csv")
+```
+
+We add now information regarding sampling sites (extracted from the samples names), use of blocking primers or not, pre- or post-filter, and the sample type (gut contents or community)
+
+```{r adding variables first frame, include=F}
+ha.pre = as.data.frame(ha.pre.filter)
+ha.post = as.data.frame(ha.post.filter)
+
+ha.pre$type = "pre.filter"
+ha.post$type = "post.filter"
+
+ha.clean$sample_id = gsub(".nc.blast$", "", rownames(ha.clean))
+ha.pre$sample_id = gsub(".nc.blast$", "", rownames(ha.pre))
+ha.post$sample_id = gsub(".nc.blast$", "", rownames(ha.post))
+
+ha.clean$sample_type = "gut"
+ha.pre$sample_type = "gut"
+ha.post$sample_type = "gut"
+
+ha.clean$pcr = "no-blocking"
+ha.pre$pcr = "no-blocking"
+ha.post$pcr = "no-blocking"
+```
+
+## Second data frame
+
+The second data frame includes data from the first sequencing run from August 2018, which contains _H. axyridis_ gut contents samples from Oxfordshire sites collected in May 2017.
+
+```{r threshold second frame, include=TRUE}
+## Positive samples Aug18_1
+pos18.1 = grep("POS", colnames(ha1.clean))
+colSums(ha1.clean[,pos18.1])
+ha1.pos = as.data.frame(ha1.clean[,pos18.1])
+
+tot.pos18.1 = sum(ha1.pos)
+lr.pos18.1 = sum(ha1.pos[c("Lumbricus_rubellus","Lumbricidae","Harmonia_axyridis"),])
+cont18.1 = tot.pos18.1-lr.pos18.1
+cont18.1
+
+thres18.1 = cont18.1/sum(ha1.pos)
+thres18.1
+
+ha18.1.pre.filter = as.data.frame(t(ha1.clean))
+ha18.1.pre.filter = ha18.1.pre.filter/rowSums(ha18.1.pre.filter)
+ha18.1.pre.filter[is.na(ha18.1.pre.filter)] <- 0
+
+max(ha18.1.pre.filter$Homo_sapiens)
+```
+
+We calculated the threshold equal to approx. `3.8e-05`; however the max values from known contamination taxa across samples outside of the positive appear higher. In particular we detect contamination of: _Homo sapiens_ = 0.002804504. We decided to apply the calculated threshold the same, despite we are going to retain Human contamination.
+
+```{r filter second frame}
+ha18.1.post.filter = as.data.frame(ha18.1.pre.filter)
+ha18.1.post.filter[,][ha18.1.post.filter[,] <= thres18.1] <- 0
+
+ha1.clean = as.data.frame(t(ha1.clean))
+ha1.clean[][ha1.clean[,]/rowSums(ha1.clean) <= thres18.1] <- 0
+
+## Write output to csv
+
+write.csv(ha1.clean, "R_outputs/HaAug18_1_cleaned_reads.csv")
+write.csv(ha18.1.pre.filter, "R_outputs/HaAug18_1_pre-filter.csv")
+write.csv(ha18.1.post.filter, "R_outputs/HaAug18_1_post-filter.csv")
+```
+
+We add now information regarding sampling sites (extracted from the samples names), use of blocking primers or not, pre- or post-filter, and the sample type (gut contents or community)
+
+```{r adding variable second frame, include=F}
+ha18.1.pre = as.data.frame(ha18.1.pre.filter)
+ha18.1.post = as.data.frame(ha18.1.post.filter)
+
+ha18.1.pre$type = "pre.filter"
+ha18.1.post$type = "post.filter"
+
+ha1.clean$sample_id = gsub("[.]pl.[a-zA-Z0-9.]{3,5}.nc.blast$", "", rownames(ha1.clean))
+ha18.1.pre$sample_id = gsub("[.]pl.[a-zA-Z0-9.]{3,5}.nc.blast$", "", rownames(ha18.1.pre))
+ha18.1.post$sample_id = gsub("[.]pl.[a-zA-Z0-9.]{3,5}.nc.blast$", "", rownames(ha18.1.post))
+
+ha1.clean$sample_type = "gut"
+ha18.1.pre$sample_type = "gut"
+ha18.1.post$sample_type = "gut"
+
+ha1.clean$pcr = "with blocking"
+ha18.1.pre$pcr = "with blocking"
+ha18.1.post$pcr = "with blocking"
+```
+
+## Third data frame
+
+The last data frame includes data from the second from August 2018 containing _H. axyridis_ contents samples from Yorkshire sites collected in May 2017, plus the Oxfordshire and Yorkshire sites collected in October 2017. This frame contains also all the community tissue samples.
+
+```{r threshold third frame, include=FALSE}
+## Positive samples Aug18_2
+pos18.2 = grep("POS", colnames(ha2.clean))
+colSums(ha2.clean[,pos18.2])
+ha2.pos = as.data.frame(ha2.clean[,pos18.2])
+ha2.pos = subset(ha2.pos, subset=rowSums(ha2.pos) > 0)
+rowSums(ha2.pos)
+
+tot.pos18.2 = sum(ha2.pos)
+lr.pos18.2 = sum(ha2.pos[c("Lumbricus_rubellus","Lumbricidae","Harmonia_axyridis"),])
+cont18.2 = tot.pos18.2-lr.pos18.2
+cont18.2
+
+ha18.2.pre.filter = as.data.frame(t(ha2.clean))
+ha18.2.pre.filter = ha18.2.pre.filter/rowSums(ha18.2.pre.filter)
+ha18.2.pre.filter[is.na(ha18.2.pre.filter)] <- 0
+
+max(ha18.2.pre.filter$Dikerogammarus_villosus)
+max(ha18.2.pre.filter$Homo_sapiens)
+```
+
+We didn't detect any other contamination in the positive samples outside of _H. axyridis_ DNA; however known contaminations and their max value of detection in the actual samples were: _Dikerogammarus villosus_ = 0.0005219752, and _Homo sapiens_ = 0.0006574622. We then decided to put the threshold equal to `0.0006` to remove these main contaminations, despite retaining some Human contamination.
+
+```{r filter third frame}
+ha18.2.post.filter = as.data.frame(ha18.2.pre.filter)
+ha18.2.post.filter[][ha18.2.post.filter <= 0.0006] <- 0
+
+ha2.clean = as.data.frame(t(ha2.clean))
+ha2.clean[][ha2.clean[,]/rowSums(ha2.clean) <= 0.0006] <- 0
+
+## Write output to csv
+write.csv(ha2.clean, "R_outputs/HaAug18_2_cleaned_reads.csv")
+write.csv(ha18.2.pre.filter, "R_outputs/HaAug18_2_pre-filter.csv")
+write.csv(ha18.2.post.filter, "R_outputs/HaAug18_2_post-filter.csv")
+```
+
+We add now information regarding sampling sites (extracted from the samples names), use of blocking primers or not, pre- or post-filter, and the sample type (gut contents or community)
+
+```{r adding variable third frame, include=FALSE}
+ha18.2.pre = as.data.frame(ha18.2.pre.filter)
+ha18.2.post = as.data.frame(ha18.2.post.filter)
+
+ha18.2.pre$type = "pre.filter"
+ha18.2.post$type = "post.filter"
+
+ha2.clean$sample_id = gsub("[.]pl.[a-zA-Z0-9.]{3,5}.nc.blast$", "", rownames(ha2.clean))
+ha18.2.pre$sample_id = gsub("[.]pl.[a-zA-Z0-9.]{3,5}.nc.blast$", "", rownames(ha18.2.pre))
+ha18.2.post$sample_id = gsub("[.]pl.[a-zA-Z0-9.]{3,5}.nc.blast$", "", rownames(ha18.2.post))
+
+ha2.clean$sample_type = "NA"
+ha2.clean[grep("Ha", ha2.clean$sample_id), "sample_type"] = "gut"
+ha2.clean[-grep("Ha", ha2.clean$sample_id), "sample_type"] = "community"
+
+ha18.2.pre$sample_type = "NA"
+ha18.2.pre[grep("Ha", ha18.2.pre$sample_id),"sample_type"] = "gut"
+ha18.2.pre[-grep("Ha", ha18.2.pre$sample_id),"sample_type"] = "community"
+
+ha18.2.post$sample_type = "NA"
+ha18.2.post[grep("Ha", ha18.2.post$sample_id),"sample_type"] = "gut"
+ha18.2.post[-grep("Ha", ha18.2.post$sample_id),"sample_type"] = "community"
+
+ha2.clean$pcr = "with blocking"
+ha18.2.pre$pcr = "with blocking"
+ha18.2.post$pcr = "with blocking"
+```
+
+# 2. Blocking primers
+## Testing the use of blocking primers
+
+We test here the effects of using blocking primers in gut contents analysis of _Harmonia axyridis_ in the UK. In our case we developed Harmonia-specific blocking primers with a 3C-3' end tail. These were added during the first PCR of both the sequencing runs done in August 2018. No blocking primer was added in the sequencing run from August 2017. In total we have same N=50 samples from May 2017 collected in Lawns and Thwaite Gardens that were sequenced twice in two separate runs, one without and one with blocking primers. First we extract the samples from their respective data frames, then we investigate the difference across these 50 samples that were sequenced with and without blocking primers (Ntot = 100).
+
+```{r boxplot blk primers, include=TRUE, echo=FALSE}
+no.blk.reads = as.data.frame(ha.clean)
+blk.reads = as.data.frame(ha2.clean)
+
+keep = grep("LAWN|THWA", no.blk.reads$sample_id)
+no.blk.reads = no.blk.reads[keep,]
+no.blk.reads$time = "May"
+no.blk.reads$site = gsub("[.][a-z]{3}.[A-Za-z0-9]{3,4}$","", no.blk.reads$sample_id)
+
+blk.reads$time = "NA"
+blk.reads[grep("may", rownames(blk.reads)),"time"] = "May"
+blk.reads[grep("oct", rownames(blk.reads)),"time"] = "Oct"
+blk.reads$site = gsub("[.][a-z]{3}(.[A-Za-z0-9]{3,4})*$","", blk.reads$sample_id)
+
+keep = grep("LAWN|THWA", blk.reads$sample_id)
+blk.reads = blk.reads[keep,]
+rownames(blk.reads) = blk.reads$sample_id
+blk.reads = blk.reads[][blk.reads$sample_type == "gut",]
+blk.reads = blk.reads[][blk.reads$time == "May",]
+
+## Creating and calculating the ratio in data frames
+
+no.blk.ratio = as.data.frame(no.blk.reads)
+blk.ratio = as.data.frame(blk.reads)
+
+no.blk.ratio = subset(no.blk.ratio[,1:10], select = colSums(no.blk.ratio[,1:10]) > 0)
+no.blk.ratio = no.blk.ratio/rowSums(no.blk.ratio)
+
+blk.ratio = subset(blk.ratio[,1:143], select = colSums(blk.ratio[,1:143]) > 0)
+blk.ratio = blk.ratio/rowSums(blk.ratio)
+
+no.blk.ratio = cbind(no.blk.ratio, no.blk.reads[,11:15])
+blk.ratio = cbind(blk.ratio, blk.reads[,144:148])
+
+## Removing the empty taxa in the frames with the reads count
+
+no.blk.reads = subset(no.blk.reads[,1:10], select = colSums(no.blk.reads[,1:10]) > 0)
+blk.reads = subset(blk.reads[,1:143], select = colSums(blk.reads[,1:143]) > 0)
+
+no.blk.reads = cbind(no.blk.reads, no.blk.ratio[,5:9])
+blk.reads = cbind(blk.reads, blk.ratio[,6:10])
+
+## Removing the remaining contamination of _Lumbricus rubellus_ (the positive taxa) in the frame with blocking primers.
+blk.reads = blk.reads[,!(colnames(blk.reads) %in% "Lumbricus_rubellus")]
+blk.ratio = blk.ratio[,!(colnames(blk.ratio) %in% "Lumbricus_rubellus")]
+```
+
+After all the previous quality controls and contamination controls we retained the great majority of the gut content samples for the sequencing run without blocking primers (all N=50 samples retained), and with blocking primers (N=45 out of N=50 initial samples). The Chi-squared test for difference show us that there is a significant difference in the sum of the N reads belonging to preys and predator obtained from sequencing without and with blocking primers (Chi-squared = 16510, df = 1, p-value < 2.2e-16).
+
+```{r barplot blk primers, include=T, echo=F}
+full.blk.join = full_join(no.blk.ratio, blk.ratio)
+full.blk.join = melt(full.blk.join)
+
+p1 = ggplot(full.blk.join, aes(pcr, value)) +
+  geom_bar(stat="identity",position="fill", aes(fill=variable)) +
+  coord_flip() +
+  labs(x=" ", y=" ") +
+  theme(legend.position="none") +
+  geom_rect(aes(ymin=0.95,ymax=1.01,xmin=0.5,xmax=2.5), lty=1, lwd=1, color="red", fill=NA)
+
+p2 = ggplot(full.blk.join, aes(pcr, value)) +
+  geom_bar(stat="identity",position="fill", aes(fill=variable)) +
+  coord_flip(ylim=c(0.95,1.0)) +
+  labs(x=" ", y="prey:predator ratio") +
+  theme(legend.position="bottom", legend.title=element_blank(), legend.margin=margin(1,20,1,1)) +
+  geom_rect(aes(ymin=0.95,ymax=1.002,xmin=0.5,xmax=2.5), lty=1, lwd=1, color="red", fill=NA) +
+  guides(fill=guide_legend(nrow=2, byrow=T))
+
+pa = grid.arrange(p1, p2, nrow=2, top="Prey to predator DNA ratio with and without blocking primers\n(bottom plot is the zoomed in section in red square)")
+
+ggsave("R_images/blk_vs_no-blk.png", plot=pa, device="png", width=15, height=8)
+```
+
+Before testing whether the blocking primers had an impact on the DNA reads of prey and predator, we needed to make sure that both subsets were comparable in terms of coverage. The Wilcoxon test showed that the coverage of the two subsets were significanlty different (Wilcoxon test: W = 1492, p-value = 0.0063). We decided therefore to include a normalisation step by dividing DNA reads by the total number of reads in each set, and multiplying by 1*10e6 (Wilcoxon test on normalised reads: W = 1144, p-value = 0.8903).
+
+```{r normalisation, include=F}
+wilcox.test(rowSums(no.blk.reads[,1:4]), rowSums(blk.reads[,1:4]))
+
+norm.no.blk.reads = (no.blk.reads[,1:4]/sum(no.blk.reads[,1:4]))*1000000
+norm.blk.reads = (blk.reads[,1:4]/sum(blk.reads[,1:4]))*1000000
+
+wilcox.test(rowSums(norm.no.blk.reads), rowSums(norm.blk.reads))
+```
+
+We could now test whether there was an association between the use of blocking primers and the number of reads that we obtained for the prey items and the predator, and we obtain a significant association between the presence of the blocking primers and the number of reads obtained from the sequencing (Chi-squared test: Chi-squared = 13956, df = 1, p-value < 2.2e-16)
+
+```{r chi-squared on normalised, include=T, echo=F}
+prey.no.blk = sum(norm.no.blk.reads[,colnames(norm.no.blk.reads) != "Harmonia_axyridis"])
+pred.no.blk = sum(norm.no.blk.reads$Harmonia_axyridis)
+
+prey.blk = sum(norm.blk.reads[,colnames(norm.blk.reads) != "Harmonia_axyridis"])
+pred.blk = sum(norm.blk.reads$Harmonia_axyridis)
+
+chisq.test(rbind(c(prey.blk, prey.no.blk), c(pred.blk, pred.no.blk)))
+```
+
+```{r prey reads boxplot, include=T, echo=F}
+boxplot(rowSums(no.blk.reads[,1:4][,colnames(no.blk.reads[,1:4]) != "Harmonia_axyridis"]), rowSums(blk.reads[,1:4][,colnames(blk.reads[,1:4]) != "Harmonia_axyridis"]), names = c("without blocking primers\n(N=50)", "with blocking primers\n(N=45)"), ylab="Prey DNA reads", main="DNA of prey taxa in Harmonia axyridis gut contents")
+
+boxplot(rowSums(norm.no.blk.reads[,colnames(norm.no.blk.reads) != "Harmonia_axyridis"]), rowSums(norm.blk.reads[,colnames(norm.blk.reads) != "Harmonia_axyridis"]), names = c("without blocking primers\n(N=50)", "with blocking primers\n(N=45)"), ylab="Normalised prey DNA reads", main="DNA of prey taxa in Harmonia axyridis gut contents")
+```
+
+
+```{r}
+plot_no_blk = as.data.frame(norm.no.blk.reads[,1:4])
+plot_blk = as.data.frame(norm.blk.reads[,1:4])
+
+rownames(plot_no_blk)
+rownames(plot_blk)
+
+plot_no_blk = as.data.frame(t(plot_no_blk))
+plot_blk = as.data.frame(t(plot_blk))
+
+plot_no_blk$pcr = "no-blocking"
+plot_blk$pcr = "blocking"
+
+plot_no_blk$specie_type = "NA"
+plot_no_blk[grep("Harmonia_axyridis", rownames(plot_no_blk)),"specie_type"] = "predator"
+plot_no_blk[grep("Harmonia_axyridis", rownames(plot_no_blk), invert = T), "specie_type"] = "prey"
+
+plot_blk$specie_type = "NA"
+plot_blk[grep("Harmonia_axyridis", rownames(plot_blk)),"specie_type"] = "predator"
+plot_blk[grep("Harmonia_axyridis", rownames(plot_blk), invert = T), "specie_type"] = "prey"
+
+plot_no_blk$specie = rownames(plot_no_blk)
+plot_blk$specie = rownames(plot_blk)
+
+plot_no_blk[plot_no_blk == 0] <- NA
+plot_blk[plot_blk == 0] <- NA
+
+
+plot_frame = full_join(plot_blk, plot_no_blk)
+
+plot_frame["9",] = plot_frame[plot_frame$specie == "Pyrrhalta_viburni",]
+plot_frame["9","pcr"] = "blocking"
+plot_frame["9",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
+
+plot_frame["10",] = plot_frame[plot_frame$specie == "Drepanosiphum_platanoidis",]
+plot_frame["10","pcr"] = "no-blocking"
+plot_frame["10",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
+
+full_blk_melt = melt(plot_frame)
+
+str(full_blk_melt)
+
+### BOXPLOT
+full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking","blocking"))
+ggplot(full_blk_melt,(aes(specie_type,log10(value)))) +
+  geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
+  geom_jitter() +
+  labs(x="", y="Log10(normalised DNA reads)") +
+  theme_bw() +
+  theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  facet_grid(.~pcr)
+
+### HEATMAP PLOT
+a<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Drepanosiphum_platanoidis","Pyrrhalta_viburni"),],(aes(pcr, variable))) +
+  geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
+  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="transparent", limits=c(1,70), name="Normalised\nDNA reads\n") +
+  theme_classic() +
+  facet_grid(.~specie) + labs(x="", y="")
+
+b<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Chrysomelidae","Euceraphis_betulae"),],(aes(pcr, variable))) +
+  geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
+  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=2000, na.value="transparent", limits=c(1,4000), name="Normalised\nDNA reads\n") + 
+  theme_classic() +
+  facet_grid(.~specie) + labs(x="", y="")
+
+c<-ggplot(full_blk_melt[full_blk_melt$specie_type %in% "predator",],(aes(pcr, variable))) +
+  geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
+  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=35000, na.value="transparent", limits=c(1,70000), name="Normalised\nDNA reads\n") +
+  theme_classic() +
+  facet_grid(.~specie) + labs(x="", y="")
+
+grid.arrange(arrangeGrob(c,a, ncol=2), arrangeGrob(b), nrow=2, left="Sample ID")
+```
+
+# 3. Detection of prey taxa
+
+We want to investigate now the temporal and spatial networks we could detectd from _Harmonia axyridis_ gut contents. At this stage we will use only the datasets that were sequenced with blocking primers, and to better investigate the prey DNA we detected, we decided to remove the predator from our datasets. 
+We start by exploring the data splitting them by sampling area (Oxfordshire or Yorkshire), by sampling time (May or October), and by sample type (gut contents or community).
+
+```{r adding info to data frames, echo=FALSE}
+ha1.clean$site = gsub("[.][a-z]{3}(.[A-Za-z0-9]{3,4})*$","", ha1.clean$sample_id)
+ha1.clean$time = "May"
+
+ha2.clean$site = gsub("[.][a-z]{3}(.[A-Za-z0-9]{3,4})*$","", ha2.clean$sample_id)
+ha2.clean$time = "NA"
+ha2.clean[grep("may", rownames(ha2.clean)),"time"] = "May"
+ha2.clean[grep("oct", rownames(ha2.clean)), "time"] = "Oct"
+```
+
+```{r merging harmonia frames, include=F}
+ha.full = full_join(ha1.clean, ha2.clean)
+
+ha.full = ha.full[,][,!c(colnames(ha.full) %in% "Lumbricus_rubellus")]
+pn = grep("POS|NEG", ha.full$sample_id)
+ha.full = ha.full[-pn,]
+```
+
+
+```{r Oxfordshire & Yorkshire sites}
+oxf = grep("AoT|KID|RAIL|STRE|WALL|SUTT", ha.full$sample_id, ignore.case = T)
+oxf.full = ha.full[oxf,]
+
+ha.ox = grep("Ha", oxf.full$sample_id)
+oxf.comms = oxf.full[-ha.ox,]
+oxf.comms$county = "Oxfordshire"
+oxf.guts = oxf.full[ha.ox,]
+oxf.guts$county = "Oxfordshire"
+
+yor = grep("LAWN|THWA|PEAR|OAK|BEV|UNI", ha.full$sample_id, ignore.case = T)
+yor.full = ha.full[yor,]
+
+ha.yor = grep("Ha", yor.full$sample_id)
+yor.comms = yor.full[-ha.yor,]
+yor.comms$county = "Yorkshire"
+yor.guts = yor.full[ha.yor,]
+yor.guts$county = "Yorkshire"
+```
+
+```{r testing difference of prey taxa in guts, include=F}
+oxf.guts[is.na(oxf.guts)] <- 0
+infos = oxf.guts[,colnames(oxf.guts) %in% c("sample_id","sample_type","pcr","site","time","county")]
+
+# We select only the taxa with N reads great than zero
+
+ha.oxf = subset(oxf.guts[,!c(colnames(oxf.guts) %in% colnames(infos))], select = colSums(oxf.guts[,!c(colnames(oxf.guts) %in% colnames(infos))]) > 0)
+ha.oxf = cbind(ha.oxf, infos)
+prey.oxf = ha.oxf[,!(colnames(ha.oxf) %in% c("Harmonia_axyridis","Homo_sapiens"))]
+
+prey.oxf[,1:11][prey.oxf[,1:11] > 0] <- 1
+
+# We do the same process for the Yorkshire samples
+
+yor.guts[is.na(yor.guts)] <- 0
+infos = yor.guts[colnames(yor.guts) %in% c("sample_id","sample_type","pcr","site","time","county")]
+
+# Again we select only the taxa with N reads great than zero
+
+ha.yor = subset(yor.guts[,!c(colnames(yor.guts) %in% colnames(infos))], select = colSums(yor.guts[,!c(colnames(yor.guts) %in% colnames(infos))]) > 0)
+ha.yor = cbind(ha.yor, infos)
+prey.yor = ha.yor[,!(colnames(ha.yor) %in% c("Harmonia_axyridis","Homo_sapiens"))]
+
+prey.yor[,1:9][prey.yor[,1:9] > 0] <- 1
+```
+
+```{r join full guts samples, include=F}
+full.guts = full_join(prey.oxf, prey.yor)
+
+num.taxa = as.data.frame(full.guts[,!c(colnames(full.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
+num.taxa[is.na(num.taxa)] <- 0
+num.taxa[,!c(colnames(num.taxa) %in% c("time","county"))][num.taxa[,!c(colnames(num.taxa) %in% c("time","county"))] > 0] <- 1
+
+colnames(full.guts)
+colnames(num.taxa)
+
+## Removing taxa at Order level
+
+full.guts$Dinocampus_coccinellae = rowSums(full.guts[,c(colnames(full.guts) %in% c("Dinocampus","Dinocampus_coccinellae"))])
+num.taxa$Dinocampus_coccinellae = rowSums(num.taxa[,c(colnames(num.taxa) %in% c("Dinocampus","Dinocampus_coccinellae"))])
+
+full.guts = full.guts[,!c(colnames(full.guts) %in% c("Psocoptera","Hemiptera","Dinocampus"))]
+num.taxa = num.taxa[,!c(colnames(num.taxa) %in% c("Psocoptera","Hemiptera","Dinocampus"))]
+
+
+full.guts = melt(full.guts)
+num.taxa = melt(num.taxa)
+```
+
+We detected a total of 49 interactions in Oxfordshire in May (N tot=63), only 10 interactions in Oxfordshire in October (N tot=59); while we detected 28 and 22 interactions respectively in Yorkshire in May (N tot=104) and October (N tot=99).
+
+```{r guts occurrences plot, include=T, echo=F}
+ggplot(full.guts, aes(time,value)) +
+  geom_bar(stat="identity", position="stack") +
+  facet_grid(.~county) +
+  coord_cartesian(ylim=c(0,80)) +
+  scale_y_continuous(breaks=seq(0,80,10)) +
+  labs(title="Total occurrence of taxa in Harmonia axyridis gut contents\nacross counties and seasons", y="N occurrences of taxa", x="Sampling time")
+
+ggsave("R_images/Occurr_taxa_in_guts.png", plot=last_plot(), device="png", width=15, height=8)
+```
+
+The individual _H. axyridis_ show a low diversity of prey utilised. Individuals from Oxfordshire in May showed a higher number of prey taxa detected (N prey taxa=10), while in comparison the same sites but from October showed the least number of prey detected (N prey=2 out of 59 individuals sampled). These results from October match our expecteation considering the mostly empty guts observed during dissections.
+Yorskhire samples show as well a low prey diversity for both May (N prey=4 out of 104 sampled), and October (N prey=7 out of 99 individuals sampled).
+
+
+```{r barplot N prey taxa}
+ggplot(num.taxa, aes(time,value)) +
+  geom_bar(stat="identity", position="stack") +
+  facet_grid(.~county) +
+  scale_y_continuous(breaks = seq(0,10,2)) +
+  labs(title="N taxa detected in Harmonia axyridis gut contents across counties and seasons", y="N taxa", x="Sampling time")
+
+ggsave("R_images/N_taxa_in_guts.png", plot=last_plot(), device="png", width=15, height=8)
+```
+
+```{r join reads.guts, include=T, echo=F}
+reads.guts = full_join(ha.oxf, ha.yor)
+reads.guts[is.na(reads.guts)] <- 0
+
+## merging taxa
+
+reads.guts$Dinocampus_coccinellae = rowSums(reads.guts[,c(colnames(reads.guts) %in% c("Dinocampus","Dinocampus_coccinellae"))])
+
+reads.guts = reads.guts[,!c(colnames(reads.guts) %in% "Dinocampus")]
+
+reads.guts$Euceraphis = rowSums(reads.guts[,c(colnames(reads.guts) %in% c("Euceraphis","Euceraphis_betulae"))])
+reads.guts = reads.guts[,!c(colnames(reads.guts) %in% "Euceraphis_betulae")]
+```
+
+```{r read.guts plot, include=T, echo=F}
+reads.guts = reads.guts[,!(colnames(reads.guts) %in% c("Harmonia_axyridis","Homo_sapiens"))]
+reads.guts[is.na(reads.guts)] <- 0
+melt.guts = melt(reads.guts)
+melt.guts = melt.guts[melt.guts$value > 0,]
+
+color16=c("#E69F00","#56B4E9","#CC79A7","#009E73","#F0E442","#999999","#0072B2","#D55E00",
+          "#000000","#993300","#9ACD32","#FF0000","#33FF33","#6633CC","#68228B","#0000FF")
+
+ggplot(melt.guts, aes(sample_id, value)) +
+  geom_bar(stat="identity", position="fill", aes(fill=variable)) +
+  coord_flip() +
+  scale_fill_manual(values = color16, name = "") +
+  facet_grid(county*time~., scales="free") + 
+  theme(legend.position = "bottom") +
+  labs(title="Gut content composition from read count data for all individuals\n(Harmonia DNA excluded)") +
+  guides(fill=guide_legend(nrow=7, byrow=T))
+
+ggsave("R_images/guts_composition_all_ha.png", plot=last_plot(), device="png", width=15, height=8)
+```
+
+
+```{r read.guts plot 2, include=T, echo=F}
+ggplot(melt.guts, aes(time, value)) +
+  geom_bar(stat="identity", position="fill", aes(fill=variable)) +
+  coord_flip() +
+  scale_fill_manual(values = color16, name = "") +
+  facet_grid(county~., scales="free") + 
+  theme(legend.position = "bottom") +
+  labs(title="Gut content composition from read count data across season and county\n(Harmonia DNA excluded)") +
+  guides(fill=guide_legend(nrow=7, byrow=T))
+
+ggsave("R_images/guts_composition_across_oxf_york.png", plot=last_plot(), device="png", width=15, height=8)
+```
+
+We now investigate the arboreal communities associated with the _Harmonia axyridis_ sampled in both counties across the two separate seasons.
+
+```{r join reads.comm plus summary, include=F}
+reads.comms = full_join(oxf.comms, yor.comms)
+reads.comms[is.na(reads.comms)] <- 0
+
+reads.comms = reads.comms[,!c(colnames(reads.comms) %in% c("Harmonia_axyridis","Homo_sapiens"))]
+reads.comms$Dinocampus_coccinellae = rowSums(reads.comms[,c(colnames(reads.comms) %in% c("Dinocampus","Dinocampus_coccinellae"))])
+reads.comms = reads.comms[,!c(colnames(reads.comms) %in% "Dinocampus")]
+
+reads.comms$Trombidiformes = rowSums(reads.comms[,c(colnames(reads.comms) %in% c("Trombidiformes_sp._BOLD:ACI3657","Trombidiformes"))])
+reads.comms = reads.comms[,!c(colnames(reads.comms) %in% "Trombidiformes_sp._BOLD:ACI3657")]
+
+reads.comms$Psocoptera = rowSums(reads.comms[,c(colnames(reads.comms) %in% c("Psocoptera_sp._BOLD:AAN8452","Psocoptera"))])
+reads.comms = reads.comms[,!c(colnames(reads.comms) %in% "Psocoptera_sp._BOLD:AAN8452")]
+```
+
+```{r splitting communities into ranks, include=F}
+info.comms = reads.comms[,c(colnames(reads.comms) %in% c("pcr","site","sample_id","sample_type","time","county"))]
+
+sp.comms = reads.comms[,!c(colnames(reads.comms) %in% c("pcr","site","sample_id","sample_type","time","county"))][,grep("_", colnames(reads.comms[,!c(colnames(reads.comms) %in% c("pcr","site","sample_id","sample_type","time","county"))]))]
+
+highrank.comms = reads.comms[,!c(colnames(reads.comms) %in% c("pcr","site","sample_id","sample_type","time","county"))][,grep("_", colnames(reads.comms[,!c(colnames(reads.comms) %in% c("pcr","site","sample_id","sample_type","time","county"))]), invert=T)]
+
+melt.sp.comms = cbind(sp.comms, info.comms)
+melt.rank.comms = cbind(highrank.comms, info.comms)
+```
+
+```{r community composition plots, include=F}
+melt.comms = melt(melt.sp.comms)
+melt.comms = subset(melt.comms, subset=melt.comms$value > 0)
+
+#color19=c("#E69F00", "#56B4E9", "#CC79A7", "#009E73", "#F0E442", "#999999", "#0072B2", "#D55E00",  "#000000","#993300","#003333","#333300","#33FF33","#6633CC","#CC3300","#FF00CC","#CCFFCC", "#6633CC","#68228B")
+
+ggplot(melt.comms, aes(time, value)) +
+  geom_bar(stat="identity", position="fill", aes(fill=variable)) +
+  facet_grid(.~county, scales="free") +
+  theme(legend.position="none") +
+#  scale_fill_manual(values=color19) +
+  labs(title = "Arboreal community (presence/absence data) from DNA metabarcoding")
+
+ggsave("R_images/arboreal_community_pres-abs.png", plot=last_plot(), device="png", width=15, height=8)
+```
+
+```{r join ratio.comms, include=F}
+ratio.comms = as.data.frame(reads.comms)
+```
+
+PERMANOVA analysis (Number of permutations: 10000, Euclidean distance) on the community data show a strong significant influence of season (R2=0.36640, p-value=9.999e-05) on the investigated communities, rather than counties (R2=0.04647, p-value=0.2817); or both variables together (R2=0.06100, p-value=0.1396). This can be seen also in the NMDS plot with a small overlap between different season (ovals), but a strong overlap between county (webs).
+
+```{r permanova communities, include=F}
+#ratio.comms[is.na(ratio.comms)] <- 0
+
+info.comms = ratio.comms[,colnames(ratio.comms) %in% c("sample_id","sample_type","pcr","site","time","county")]
+ratio.comms = ratio.comms[,!c(colnames(ratio.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))]
+ratio.comms = ratio.comms/rowSums(ratio.comms)
+
+#ratio.comms[,][ratio.comms[,] > 0] <- 1
+ratio.comms = cbind(ratio.comms, info.comms)
+ratio.comms = ratio.comms[,!c(colnames(ratio.comms) %in% c("Harmonia_axyridis","Homo_sapiens"))]
+
+matrix.ratio.com = as.matrix(ratio.comms[,!c(colnames(ratio.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+```
+
+
+```{r permanova communities on species, include=T}
+ratio.sp.comms = sp.comms/rowSums(sp.comms)
+ratio.sp.comms = cbind(ratio.sp.comms, info.comms)
+
+matrix.sp.com = as.matrix(ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+
+fact_county = matrix(c(ratio.sp.comms$county),ncol=1) 
+fact_time = matrix(c(ratio.sp.comms$time), ncol=1)
+fact_all = matrix(c(ratio.sp.comms$county, ratio.sp.comms$time),ncol=2) 
+
+dist.sp.com = vegdist(matrix.sp.com)
+
+adonis(dist.sp.com~fact_county*fact_time, permutations = 10000, method="euclid")
+```
+
+```{r permanova low rank community plot, include=T, echo=F}
+plot(meta.comms<-metaMDS(dist.sp.com,zerodist=ignore, k=2, trymax=200),type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6),
+main="Species level community PERMANOVA by county and season")
+points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
+points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
+points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
+points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="Oct"),col="blue", pch=15)
+ordispider(meta.comms,group=fact_all[,1], col=c("darkorange", "yellow"),label=T)
+ordiellipse(meta.comms,group=fact_all[,2],kind="ehull", lty=c(1,3),label=T, lwd=2)
+
+scores(meta.comms$stress)
+```
+
+Rarefaction curves based on taxa assigned at specie level, show that to reach the plateau of species richness in the communities, more samples should have been collected, or more sites should have been included; even though the diversity values appear to be much closer to the plateau.
+
+```{r rarefaction curves on low ranks community, include=T, echo=F}
+ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id","sample_type","pcr","site","county","time"))][ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id","sample_type","pcr","site","county","time"))] > 0] <- 1
+abund.sp.comms = as.data.frame(ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
+
+rare.sp.comms = t(abund.sp.comms)
+colnames(rare.sp.comms) = c("Oxfordshire May","Yorkshire May","Oxfordshire Oct","Yorkshire Oct")
+rare.sp.comms = rare.sp.comms[!c(rownames(rare.sp.comms) %in% c("county","time")),]
+rare.sp.comms = as.data.frame(rare.sp.comms)
+
+rare.sp.comms$`Oxfordshire May` = as.numeric(as.character(rare.sp.comms$`Oxfordshire May`))
+rare.sp.comms$`Yorkshire May` = as.numeric(as.character(rare.sp.comms$`Yorkshire May`))
+rare.sp.comms$`Oxfordshire Oct` = as.numeric(as.character(rare.sp.comms$`Oxfordshire Oct`))
+rare.sp.comms$`Yorkshire Oct` = as.numeric(as.character(rare.sp.comms$`Yorkshire Oct`))
+
+comms_inext = iNEXT(rare.sp.comms, q=c(0,1), datatype = "abundance", se=T, endpoint=100)
+
+strip_labels=c("0"="Species Richness","1"="Shannon Diversity")
+ggiNEXT(comms_inext) +
+  labs(y = "", x="Number of samples") +
+  theme(legend.position="bottom") +
+  facet_grid(order~., labeller=as_labeller(strip_labels), scales="free") +
+  ggtitle("Species level rarefaction curves on community")
+```
+Similarly to the taxa assigned to species level we ran the analysis also on the taxa assigned to higher ranks (family, order, etc.). and the results of both PERMANOVA (season: p-value=0.0008999; county: p-value=0.2576742; both variables: p-value=0.0391961) and rarefaction curves follow similar trends as per the species. Differences are in the rarefaction curves for the species richness, which appear to reach the plateau earlier than for the species. This might though be skewed by the lower number of taxa that were assigned to a higher rank.
+
+```{r high rank communities, include=F}
+ratio.highrank.comms = highrank.comms/rowSums(highrank.comms)
+ratio.highrank.comms = cbind(ratio.highrank.comms, info.comms)
+matrix.ratio.ranks = as.matrix(ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+
+fact_county = matrix(c(ratio.highrank.comms$county), ncol=1) 
+fact_time = matrix(c(ratio.highrank.comms$time), ncol=1)
+fact_all = matrix(c(ratio.highrank.comms$county, ratio.highrank.comms$time), ncol=2) 
+
+dist.highcomm = vegdist(matrix.ratio.ranks)
+
+adonis(dist.highcomm~fact_county*fact_time, permutations = 10000, method="euclid")
+```
+
+```{r permanova highranks taxa community plot, include=T, echo=F}
+plot(meta.highcomms<-metaMDS(dist.highcomm, zerodist=ignore), type="n", ylim=c(-0.7,0.4),
+main="High rank community PERMANOVA by county and season\n(red = Oxf(May), blu = York(May), black = Oxf(Oct), gray = York(Oct)")
+points(meta.highcomms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
+points(meta.highcomms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
+points(meta.highcomms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
+points(meta.highcomms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="Oct"),col="blue", pch=15)
+ordispider(meta.highcomms,group=fact_all[,1], col=c("green", "green4"),label=T)
+ordiellipse(meta.highcomms,group=fact_all[,2],kind="ehull", lty=c(1,3),label=T, lwd=2)
+```
+
+```{r rarefaction curves on community, include=T, echo=F}
+ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site","county","time"))][ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site","county","time"))] > 0] <- 1
+abund.comms = as.data.frame(ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
+
+rare.comms = t(abund.comms)
+colnames(rare.comms) = c("Oxfordshire May","Yorkshire May","Oxfordshire Oct","Yorkshire Oct")
+rare.comms = rare.comms[!c(rownames(rare.comms) %in% c("county","time")),]
+rare.comms = as.data.frame(rare.comms)
+
+rare.comms$`Oxfordshire May` = as.numeric(as.character(rare.comms$`Oxfordshire May`))
+rare.comms$`Yorkshire May` = as.numeric(as.character(rare.comms$`Yorkshire May`))
+rare.comms$`Oxfordshire Oct` = as.numeric(as.character(rare.comms$`Oxfordshire Oct`))
+rare.comms$`Yorkshire Oct` = as.numeric(as.character(rare.comms$`Yorkshire Oct`))
+
+comms_inext = iNEXT(rare.comms, q=c(0,1), datatype = "abundance", se=T, endpoint=100)
+
+strip_labels=c("0"="Species Richness","1"="Shannon Diversity")
+ggiNEXT(comms_inext) +
+  labs(y = "", x="Number of samples") +
+  theme(legend.position="bottom") +
+  facet_grid(order~., labeller=as_labeller(strip_labels), scales="free") +
+  ggtitle("High rank taxa rarefaction curves on community")
+```
+
+
+# PERMANOVA and Rarefaction curves on gut contents.
+
+```{r joining guts reads, include=F}
+ratio.guts = as.data.frame(reads.guts)
+ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% "Hemiptera")]
+```
+PERMANOVA analysis on the gut contents show a significant influence from all variables (season: p-value=9.999e-05; county: p-value=9.999e-05; both: p-value=2e-04). It worths mentioning though that the residual values for these samples are all high; so we can assume that the influence of the low number of samples positive for prey taxa could have skewed the results.
+
+
+```{r permanova guts reads, include=T, echo=F}
+info.guts = ratio.guts[,colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county")]
+ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
+ratio.guts = ratio.guts/rowSums(ratio.guts)
+
+ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("Harmonia_axyridis","Homo_sapiens"))]
+
+ratio.guts = cbind(ratio.guts, info.guts)
+rownames(ratio.guts) = ratio.guts$sample_id
+
+ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,1:15]) > 0)
+
+matrix.ratio.guts = as.matrix(ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+
+fact_county.g = matrix(c(ratio.guts$county),ncol=1) 
+fact_time.g = matrix(c(ratio.guts$time), ncol=1)
+fact_all.g = matrix(c(ratio.guts$county, ratio.guts$time), ncol=2)
+
+dist.guts = vegdist(matrix.ratio.guts, method="euclidean")
+
+adonis(dist.guts~fact_county.g*fact_time.g, permutations = 10000, method="euclid")
+```
+
+```{r metamds guts, include=F, echo=F}
+meta.guts = metaMDS(dist.guts, zerodist=ignore, trymax=100)
+```
+
+```{r permanova guts plot, include=T, echo=F}
+plot(meta.guts,type="n",
+main="gut contents PERMANOVA")
+points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="May"),col="black",pch=1)
+points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="May"),col="blue",pch=22)
+points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="Oct"),col="black",pch=16)
+points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="Oct"),col="blue",pch=15)
+ordispider(meta.guts,group=fact_all.g[,1], col=c("green", "green4"),label=T)
+ordiellipse(meta.guts,group=fact_all.g[,2],kind="ehull", lty=c(1,3),label=T,lwd=2)
+```
+
+From the rarefaction curves of both species Richness and Shannon diversity extrapolated from the gut contents analysis it appear that more individuals might need to be collected in order to increase the number of detections from the gut contents.
+
+```{r rarefaction curves on guts, include=T, echo=F}
+abund.guts = as.data.frame(ratio.guts)
+abund.guts[,1:15][abund.guts[,1:15] > 0] <- 1
+
+abund.guts = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
+
+raref.guts = t(abund.guts)
+colnames(raref.guts) = c("Oxfordshire May","Yorkshire May","Oxfordshire Oct","Yorkshire Oct")
+raref.guts = raref.guts[!c(rownames(raref.guts) %in% c("county","time")),]
+raref.guts = as.data.frame(raref.guts)
+
+raref.guts$`Oxfordshire May` = as.numeric(as.character(raref.guts$`Oxfordshire May`))
+raref.guts$`Yorkshire May` = as.numeric(as.character(raref.guts$`Yorkshire May`))
+raref.guts$`Oxfordshire Oct` = as.numeric(as.character(raref.guts$`Oxfordshire Oct`))
+raref.guts$`Yorkshire Oct` = as.numeric(as.character(raref.guts$`Yorkshire Oct`))
+
+raref.guts_inext = iNEXT(raref.guts, q=c(0,1), datatype = "abundance", se=T, endpoint=150)
+
+strip_lab=c("0"="Species Richness","1"="Shannon Diversity")
+ggiNEXT(raref.guts_inext) +
+  labs(y="", x="Number detections") +
+  theme(legend.position="bottom") +
+  facet_grid(order~., labeller=as_labeller(strip_lab), scales="free")
+```
+
+## Network of interactions
+
+Tripartite network
+
+```{r tripartite gut contents, include=T, echo=F, fig.keep="last"}
+rownames(abund.guts) = c("Oxf_May-Ha","York_May-Ha","Oxf_Oct-Ha","York_Oct-Ha")
+abund.guts = abund.guts[,!c(colnames(abund.guts) %in% c("time","county"))]
+
+abund.guts = as.data.frame(t(abund.guts))
+
+rownames(abund.guts)[10]
+rownames(abund.guts)[10] <- "Chironomus"
+
+web.ha = abund.guts[!c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
+web.dc = abund.guts[c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
+
+str(web.ha)
+str(web.dc)
+
+web.dc = as.data.frame(t(web.dc))
+web.ha = as.matrix(web.ha)
+web.dc = as.matrix(web.dc)
+
+ha_order = list(seq.higher=c("Oxf_May-Ha","York_May-Ha","Oxf_Oct-Ha","York_Oct-Ha"))
+
+test.haweb = sortweb(web.ha, sort.order="seq", sequence=ha_order)
+test.dcweb = sortweb(web.ha, sort.order="seq", sequence=ha_order)
+
+colnames(web.ha)
+rownames(web.dc)
+```
+
+```{r}
+plotweb(web.ha, y.width.low=0.1, y.width.high=0.05,	y.lim=c(0,3), adj.high=c(0.5,1.5), high.lab.dis=0, low.lablength=5, col.high="white", low.lab.dis=0.03, low.spacing=0.02, col.interaction=c("orange","yellow","blue","red"))
+plotweb(web.dc, y.width.low=0.05, y.width.high=0.1, low.y=1.5, high.y=2.5, low.lab.dis=0, low.spacing=0.05, adj.low=c(0.5,1.1), low.plot=F, arrow="down", add=T, empty=F, col.interaction=c("orange","yellow","blue","red"))
+```
+
+
+## TO CHECK ABUNDANCE OF COMMUNITY AND SHARED TAXA ACROSS COMMS AND GUTS!
+
+```{r tripartite with abundance comms test, include=F}
+
+#abund.guts
+#test.web = as.data.frame(abund.comms)
+#rownames(test.web) = c("Oxf_May-Ha","York_May-Ha","Oxf_Oct-Ha","York_Oct-Ha")
+#test.web = test.web[,-c(1:2)]
+#test.web = t(test.web)
+
+# = as.vector(test.web)
+#rownames(test.web)
+
+#web1 = abund.guts[!c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
+#web1 = web1[!c(rownames(web1)%in%"Hemiptera"),]
+
+#web2 = abund.guts[c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
+
+#str(web1)
+#str(web2)
+
+#web1[,1] = as.integer(web1[,1])
+#web1[,2] = as.integer(web1[,2])
+#web1[,3] = as.integer(web1[,3])
+#web1[,4] = as.integer(web1[,4])
+
+#web2 = as.data.frame(t(web2))
+#web2[,1] = as.integer(web2[,1])
+
+#web1 = data.matrix(web1)
+#web2 = data.matrix(web2)
+
+#plotweb(web1, y.width.low=0.1, y.width.high=0.05,	y.lim=c(0,3), adj.high=c(0.5,1.5), high.lab.dis=0, low.lablength=5, col.high="white", low.lab.dis=0.03, low.spacing=0.02, low.abun = test.web)
+#plotweb(web2, y.width.low=0.05, y.width.high=0.1, low.y=1.5, high.y=2.5, low.lab.dis=0, low.spacing=0.166, adj.low=c(0.5,1.1), low.plot=FALSE, arrow="down", add=TRUE)
+```
+
+
+```{r end}
+print("End of main body")
+```
+
+# Supplementary material
+## Plots to visualise the pre- and post-filter results.
+
+Survivability of the reads after filter threshold in the first data frame.
+
+```{r survival plot frame1, include=T, echo=F}
+ha = full_join(ha.pre, ha.post)
+ha[is.na(ha)] <- 0
+
+dim(ha)
+
+ha.melt = subset(ha, select = colSums(ha[,1:10]) > 0)
+
+d = grep("POS|NEG", ha.melt$sample_id, ignore.case = T)
+ha.melt = ha.melt[-d,]
+
+ha.melt = melt(ha.melt)
+
+#ha.melt = subset(ha.melt, ha.melt$value > 0)
+
+color10=c("#E69F00", "#56B4E9", "#CC79A7", "#009E73", "#F0E442", "#999999", "#0072B2", "#D55E00", "#000000","#8B2323")
+
+ggplot(ha.melt, aes(sample_id, value)) +
+  facet_grid(.~type) +
+  coord_flip() +
+  scale_fill_manual(values = color10, name = "") +
+  geom_bar(stat="identity", aes(fill=variable)) + 
+  labs(title="Harmonia gut contents Yorkshire (May 2017)", subtitle="Pre- vs. Post-filter of reads (test without blocking primers)") +
+  theme(axis.text.x=element_text(angle=90,hjust=0.3,vjust=0.3))
+```
+
+Pre- and post-filter results of second data frame.
+
+```{r survival plot frame2, include=T, echo=F}
+ha18.1 = full_join(ha18.1.pre, ha18.1.post)
+ha18.1[is.na(ha18.1)] <- 0
+
+dim(ha18.1)
+ha18.1.melt = subset(ha18.1, select=colSums(ha18.1[,!c(colnames(ha18.1)%in%c("type","sample_id","sample_type","pcr"))]) > 0)
+dim(ha18.1.melt)
+
+g = grep("POS|NEG", ha18.1.melt$sample_id)
+ha18.1.melt = ha18.1.melt[-g,]
+
+ha18.1.melt = melt(ha18.1.melt)
+
+ha18.1.melt = subset(ha18.1.melt, ha18.1.melt$value > 0)
+
+color19=c("#E69F00", "#56B4E9", "#CC79A7", "#009E73", "#F0E442", "#999999", "#0072B2", "#D55E00",  "#000000","#993300","#003333","#333300","#33FF33","#6633CC","#CC3300","#FF00CC","#CCFFCC", "#6633CC","#68228B")
+
+ggplot(ha18.1.melt, aes(sample_id, value)) +
+  facet_grid(.~type) +
+  coord_flip() +
+  scale_fill_manual(values = color19, name = "") +
+  geom_bar(stat="identity", aes(fill=variable)) + 
+  labs(title="Harmonia gut contents Oxfordshire (May 2017)", subtitle="Pre- vs. Post-filter of reads") +
+  theme(axis.text.x=element_text(angle=90,hjust=0.3,vjust=0.3))
+```
+
+```{r survival plot frame3}
+ha18.2 = full_join(ha18.2.pre, ha18.2.post)
+ha18.2[is.na(ha18.2)] <- 0
+
+dim(ha18.2)
+
+ha18.2 = subset(ha18.2, select=colSums(ha18.2[,1:143]) > 0)
+
+dim(ha18.2)
+gx = grep("POS|NEG", ha18.2$sample_id)
+ha18.2 = ha18.2[-gx,]
+```
+
+Before plotting, we need to divide the gut contents from the community samples
+
+```{r splitting guts and communities, include=F}
+guts18.2 = ha18.2[ha18.2$sample_type == "guts",]
+comms18.2 = ha18.2[ha18.2$sample_type == "community",]
+
+## Removing emtpy samples and empty species
+
+guts18.2 = subset(guts18.2, select = colSums(guts18.2[,1:143]) > 0)
+comms18.2 = subset(comms18.2, select = colSums(comms18.2[,1:143]) > 0)
+
+## Adding back the sample informations
+
+guts18.2$sample_id = ha18.2[ha18.2$sample_type == "guts","sample_id"]
+guts18.2$sample_type = ha18.2[ha18.2$sample_type == "guts","sample_type"]
+guts18.2$type = ha18.2[ha18.2$sample_type == "guts","type"]
+
+comms18.2$pcr = ha18.2[ha18.2$sample_type == "community","pcr"]
+
+pn = grep("POS|NEG", rownames(ha.clean))
+ha.clean = ha.clean[-pn,]
+pn = grep("POS|NEG", rownames(ha2.clean))
+ha2.clean = ha2.clean[-pn,]
+```
+
+## EXTRA
+
+```{r ggnetwork}
+### NEED TO CREATE THE NETWORK FROM THE DATA FRAMES
+#test = as.data.frame(ratio.guts)
+#test[,1:15][test[,1:15] > 0] <- 1
+
+#test_1 = as.data.frame(test[,!c(colnames(test) %in% c("pcr","sample_type","sample_id"))] %>% group_by(site,time,county) %>% summarise_all(funs(sum)))
+
+#test_1 = test[,!c(colnames(test) %in% c("pcr","sample_type","sample_id"))]
+
+#str(test_1)
+#colnames(test_1)
+#nrow(test_1)
+#length(test_1$site)
+#length(test_1$county)
+#length(test_1$time)
+
+#info_site = test_1$site
+#info_time = test_1$time
+#info_county = test_1$county
+#info_weight = c(test_1[1:nrow(test_1),4:ncol(test_1)])
+
+#rownames(test_1) = paste(test_1$site, test_1$time, sep="_")
+
+#test_1 = test_1[,!c(colnames(test_1) %in% c("site","time","county"))]
+
+#str(as.matrix(test_1))
+#test <- network(as.matrix(test_1),directed=T)
+#ggnetwork(test)
+
+#test %v% "time" <- info_time
+#test %v% "county" <- info_county
+#test %v% "site" <- info_site
+#test %v% "importance" <- info_weight
+#ggnetwork(test)
+
+#e <- network.edgecount(test)
+#set.edge.attribute(test, "time", test_1$time, e)
+#set.edge.attribute(test, "site", test_1$site)
+#set.edge.attribute(test, "county", test_1$county)
+
+#ggnetwork(test, layout = "fruchtermanreingold", cell.jitter = 0.75)
+#ggnetwork(test, layout = "target", niter = 100)
+
+#ggplot(test, aes(x=x,y=y,xend=xend,yend=yend)) +
+#  geom_edges() +
+#  geom_nodes() +
+#  geom_nodelabel(aes(label = vertex.names)) +
+#  facet_grid(time~county)
+#  theme_blank() #+ theme(legend.position = "none")
+```

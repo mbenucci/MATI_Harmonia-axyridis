@@ -1,0 +1,88 @@
+---
+title: "Ha-metabarcoding-map"
+author: "Marco Benucci"
+date: "7 August 2019"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Environment set-up
+
+```{r environment setup, include=F}
+## R(v3.5.1 - Win)
+#.libPaths(c("D:\\Dropbox\\PhD Hull\\PhD docs\\Thesis\\R_stats\\rlib3.5_win", .libPaths("D:\\Dropbox\\PhD Hull\\PhD docs\\Thesis\\R_stats\\rlib3.5_win")))
+
+## R(v3.5.1 - OSX)
+#.libPaths(c("D:\\Dropbox\\PhD Hull\\PhD docs\\Thesis\\R_stats\\rlib3.5_osx", .libPaths("D:\\Dropbox\\PhD Hull\\PhD docs\\Thesis\\R_stats\\rlib3.5_osx")))
+
+## R(v3.5.1 - ubuntu)
+.libPaths(c("/home/mb/Dropbox/PhD Hull/PhD docs/Thesis/R_stats/rlib3.5_unix", .libPaths("/home/mb/Dropbox/PhD\ Hull/PhD\ docs/Thesis/R_stats/rlib3.5_unix")))
+```
+
+```{r directory, include=FALSE}
+dir()
+rm(list=ls())
+ls()
+```
+
+Setting up the environment for R using the following packages.
+
+```{r packages loading, include=F}
+pack.list = c("broom","cowplot","devtools","dplyr","ggplot2","ggsn","gridExtra","leaflet","maps","maptools","mapview","raster","RColorBrewer","rgdal","rgeos","rworldmap","tmap")
+new.packages = pack.list[!(pack.list %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, repos="https://cran.rstudio.com")
+lapply(pack.list, require, character.only=T)
+```
+
+```{r session}
+sessionInfo()
+```
+
+We load all shapefiles for the lakes and rivers sampled. If needed we can change the coordinates system to be in `WGS84` and then we create the map frame for plotting. In this case we leave all coordinates into British National Grid. The shapefiles are quite heavy to load individually, so we can load and transform them into one step saving a bit of memory.
+
+```{r input files}
+yorks_sites = read.csv("map/yorkshire_sites.csv") 
+oxfo_sites = read.csv("map/oxfordshire_sites.csv")
+```
+
+```{r adding labels}
+yorks_sites$Label = "NA"
+yorks_sites[yorks_sites$Description == "The Lawns", "Label"] = "LAWN"
+yorks_sites[yorks_sites$Description == "Thwaite Gardens", "Label"] = "THWA"
+yorks_sites[yorks_sites$Description == "Oakfield Park", "Label"] = "OAK"
+yorks_sites[yorks_sites$Description == "UoH campus", "Label"] = "UNI"
+yorks_sites[yorks_sites$Description == "Pearson Park", "Label"] = "PEAR"
+yorks_sites[yorks_sites$Description == "Beverley Westwood", "Label"] = "BEV"
+
+oxfo_sites$Label = "NA"
+oxfo_sites[oxfo_sites$Description == "Common Wood", "Label"] = "STRE"
+oxfo_sites[oxfo_sites$Description == "Wallingford Riverside", "Label"] = "WALL"
+oxfo_sites[oxfo_sites$Description == "Sutton Courtenay Commons", "Label"] = "SUTT"
+oxfo_sites[oxfo_sites$Description == "AoT Fields", "Label"] = "AoT"
+oxfo_sites[oxfo_sites$Description == "Raileigh Park", "Label"] = "RAIL"
+oxfo_sites[oxfo_sites$Description == "The Kidnesy", "Label"] = "KID"
+```
+
+In case we need to transform coordinates, the code below transforms the shapefiles coordinates into WGS84.
+`wgs84='+proj=longlat +datum=WGS84'`
+`map = fortify(spTransform(readOGR("shapefiles.shp"), CRS(wgs84)))`
+
+All shapefiles were downloaded from:
+
+`OS Open Map Local [Shape geospatial data], Scale 1:, Tile(s): TA, TF, TG, TL, SE, SK, SY, SZ, Updated: December 2017, Ordnance Survey, Using: EDINA Digimap Ordnance Survey Service, [http://digimap.edina.ac.uk/], Downloaded: July 2019`
+
+```{r shapefiles}
+# We load all the shapefiles and transform them to be read by ggplot.
+
+# UK map
+uk_map = fortify(readOGR("map/shapefiles/GB_IRworld.shp"))
+```
+
+```{r}
+ggplot(uk_map) +
+  geom_polygon(aes(long,lat,group=group)) +
+  coord_fixed(1)
+```
+

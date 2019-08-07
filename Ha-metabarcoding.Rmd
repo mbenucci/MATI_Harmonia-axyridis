@@ -1,6 +1,8 @@
 ---
 title: "Harmonia axyridis DNA metabarcoding of gut contents"
-output:
+author: "Marco Benucci"
+date: "7 August 2019"
+  output:
   pdf_document: default
   word_document: default
 ---
@@ -52,7 +54,7 @@ DNA metabarcoding data of Harmonia axyridis gut contents were generated in 3 dif
 
 * COIDvAug18 and COIHaAug18 include gut contents of Harmonia axyridis sequenced WITH Blocking primers. The samples were collected from Yorkshire and Oxfordshire sites in May and October 2017. COIHaAug18 includes community DNA metabarcoding as well.
 
-# 1. Initial quality control
+#1. Initial quality control
 Input files and first overview. We load the 3 different files into three different data frames
 
 ```{r input data}
@@ -145,8 +147,40 @@ Read depth per sample.
 Since the data were generated into three separate sequencing runs, we check the read depth of all the samples across the three separate frames. We first remove all empty samples before calculating mean and standard deviation values across all three separate frames.
 Total number of samples were respectively, `ha.reads` (sequencing run from Aug17) Ntot=354; `ha1.reads` (first run from Aug18) Ntot=339; `ha2.reads` (second run from Aug18) Ntot=351.
 
-```{r plot read depth, include=T, echo=FALSE}
-boxplot(colSums(ha.reads), colSums(ha1.reads), colSums(ha2.reads), ylab="N reads", xlab="Data frames", main = "Read depth of Harmonia metabarcoding samples", names=c("ha.reads\n(Aug17)", "ha1.reads\n(Aug18_1)", "ha2.reads\n(Aug18_2)"), las=1, cex.axis=0.8)
+```{r boxplot read depth}
+colnames(ha.reads)
+colnames(ha1.reads)
+colnames(ha2.reads)
+
+ha.reads = subset(ha.reads, select = colSums(ha.reads) > 0)
+ha1.reads = subset(ha1.reads, select = colSums(ha1.reads) > 0)
+ha2.reads = subset(ha2.reads, select = colSums(ha2.reads) > 0)
+
+ha.depth = as.data.frame(ha.reads)
+ha1.depth = as.data.frame(ha1.reads)
+ha2.depth = as.data.frame(ha2.reads)
+
+ha.depth$library = "First"
+ha1.depth$library = "Second"
+ha2.depth$library = "Third"
+
+ha.depth = melt(ha.depth)
+ha.depth = ha.depth %>% group_by(library, variable) %>% summarise_all(list(sum))
+
+ha1.depth = melt(ha1.depth)
+ha1.depth = ha1.depth %>% group_by(library, variable) %>% summarise_all(list(sum))
+
+ha2.depth = melt(ha2.depth)
+ha2.depth = ha2.depth %>% group_by(library, variable) %>% summarise_all(list(sum))
+
+# Joining both frames, then plotting
+
+full.depth = rbind(ha.depth, ha1.depth, ha2.depth)
+
+ggplot(full.depth, aes(library, value)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(color=c("gray30"), alpha=0.5) +
+  theme_bw() + labs(x="Data sets", y="Sample read depth (N reads)")
 ```
 
 ```{r mean read depth, include=F}
@@ -193,7 +227,33 @@ ha2.cover = subset(ha2.reads, select = colSums(ha2.reads) >= cov_ha2)
 After this initial low coverage filter we retained 98.8%, 97.3% and 97.7% of the total number of reads, and respectively 92.8%, 73.9% and 80.2% number of samples.
 
 ```{r reads survival boxplot, include=TRUE, echo=FALSE}
-boxplot(colSums(ha.cover), colSums(ha1.cover), colSums(ha2.cover), ylab="N reads", xlab="Data frames", main = "Read depth of Harmonia metabarcoding samples greater than mean-sd", names=c("ha.cover\n(Aug17)", "ha1.cover\n(Aug18_1)", "ha2.cover\n(Aug18_2)"), las=1, cex.axis=0.8, ylim=c(0,120000))
+ha.retain = as.data.frame(ha.cover)
+ha1.retain = as.data.frame(ha1.cover)
+ha2.retain = as.data.frame(ha2.cover)
+
+ha.retain$library = "First"
+ha1.retain$library = "Second"
+ha2.retain$library = "Third"
+
+# Sum of DNA reads by samples to plot the sample read depth
+
+ha.retain = melt(ha.retain)
+ha.retain = ha.retain %>% group_by(library, variable) %>% summarise_all(list(sum))
+
+ha1.retain = melt(ha1.retain)
+ha1.retain = ha1.retain %>% group_by(library, variable) %>% summarise_all(list(sum))
+
+ha2.retain = melt(ha2.retain)
+ha2.retain = ha2.retain %>% group_by(library, variable) %>% summarise_all(list(sum))
+
+# Joining both frames, then plotting
+
+full.retain = rbind(ha.retain, ha1.retain, ha2.retain)
+
+ggplot(full.retain, aes(library, value)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(color=c("gray30"), alpha=0.5) +
+  theme_bw() + labs(x="Data sets", y="Sample read depth (N reads)")
 ```
 
 ```{r read survival percentage, include=FALSE}
@@ -206,9 +266,7 @@ boxplot(colSums(ha.cover), colSums(ha1.cover), colSums(ha2.cover), ylab="N reads
 (count(colSums(ha2.cover) > 0)[2]/count(colSums(ha2.reads) > 0)[2])*100
 ```
 
-Removal of untarget taxa
-
-We check first presence of unwanted taxa and high rank assignment into our data frames. In particular `unassigned` reads, and higher taxa such as unknown `Eukaryota`, `Fungi` and `Bacteria` are going to be removed since they won't be informative at all further downstream. To make the process efficient, we first remove all taxa that have no reads at all as a consequence of previous quality control steps, we then check for the presence of unwanted taxa.
+We check the presence of unwanted taxa and high rank assignment into our data frames. In particular `unassigned` reads, and higher taxa such as unknown `Eukaryota`, `Fungi` and `Bacteria` are going to be removed since they won't be informative at all further downstream. To make the process efficient, we first remove all taxa that have no reads at all as a consequence of previous quality control steps, we then check for the presence of unwanted taxa.
 
 ```{r remove unwanted taxa, include=TRUE, results="hide"}
 ha.clean = subset(ha.cover, subset=rowSums(ha.cover) > 0)
@@ -230,6 +288,7 @@ disc.ha2 = c("Columbidae","Eukaryota","Melampsora","Penicillium_sclerotiorum",
 ha2.clean = ha2.clean[!(rownames(ha2.clean)%in% disc.ha2),]
 ```
 
+We check for the survival of samples and DNA reads
 
 ```{r retained reads and samples, include=FALSE}
 (sum(ha.clean)/sum(ha.reads))*100
@@ -244,9 +303,8 @@ ha2.clean = ha2.clean[!(rownames(ha2.clean)%in% disc.ha2),]
 We retained approx. 93.6%, 90% and 78.7% of the initial N reads. After having removed the undesired taxa, we can now extract the information from the `Positive` samples, and calculate the contamination thresholds for each data set. We need to extract the positive samples from all frames. In the sequencing run done in August 2017 (`ha.clean` frame) the Positive taxa used was _Osmia bicornis_, while in both sequencing runs from August 2018 (`ha1.clean` and `ha2.clean` frames) the positive taxa used was _Lumbricus rubellus_.
 
 #3. Calculating contamination threshold
-First data frame
 
-First data frame containes data from the sequencing run from August 2017, which includesgut content samples of _Harmonia axyridis_ from Lawns (N=25) and Thwaite Gardens (N=25) collected in May 2017 amplified without the use of blocking primers. To calculate the contamination threshold we decided to account for all laboratory contaminations (e.g. Human DNA) in our `POSITIVE` samples. In the first data frame we see that the majority of the contamination in the `POSITIVE` sample comes from _Harmonia axyridis_ (~62% of the reads in the positive samples). We then decided to focus on the levels of other known contaminations, which in this case is _Homo sapiens_.
+The first data frame containes data from the sequencing run from August 2017, which includes gut content samples of _Harmonia axyridis_ from Lawns (N=25) and Thwaite Gardens (N=25) collected in May 2017 amplified without the use of blocking primers. To calculate the contamination threshold we decided to account for all laboratory contaminations (e.g. Human DNA) in our `POSITIVE` samples. In the first data frame we see that the majority of the contamination in the `POSITIVE` sample comes from _Harmonia axyridis_ (~62% of the reads in the positive samples). We then decided to focus on the levels of other known contaminations, which in this case is _Homo sapiens_.
 
 ```{r threshold first frame, include=T}
 ## Positive samples from `ha.clean` (August 2017)
@@ -297,8 +355,6 @@ ha.clean$pcr = "no-blocking"
 ha.pre$pcr = "no-blocking"
 ha.post$pcr = "no-blocking"
 ```
-
-Second data frame
 
 The second data frame includes data from the first sequencing run from August 2018, which contains _H. axyridis_ gut contents samples from Oxfordshire sites collected in May 2017.
 
@@ -360,8 +416,6 @@ ha1.clean$pcr = "with blocking"
 ha18.1.pre$pcr = "with blocking"
 ha18.1.post$pcr = "with blocking"
 ```
-
-Third data frame
 
 The last data frame includes data from the second from August 2018 containing _H. axyridis_ contents samples from Yorkshire sites collected in May 2017, plus the Oxfordshire and Yorkshire sites collected in October 2017. This frame contains also all the community tissue samples.
 
@@ -504,7 +558,7 @@ p2 = ggplot(full.blk.join, aes(pcr, value)) +
   geom_rect(aes(ymin=0.95,ymax=1.002,xmin=0.5,xmax=2.5), lty=1, lwd=1, color="red", fill=NA) +
   guides(fill=guide_legend(nrow=2, byrow=T))
 
-pa = grid.arrange(p1, p2, nrow=2, top="Prey to predator DNA ratio with and without blocking primers\n(bottom plot is the zoomed in section in red square)")
+pa = grid.arrange(p1, p2, nrow=2)
 
 ggsave("R_images/blk_vs_no-blk.png", plot=pa, device="png", width=15, height=8)
 ```
@@ -610,7 +664,10 @@ c<-ggplot(full_blk_melt[full_blk_melt$specie_type %in% "predator",],(aes(pcr, va
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="")
 
-grid.arrange(arrangeGrob(c,a, ncol=2), arrangeGrob(b), nrow=2, left="Sample ID")
+png("R_images/heatmap_blk_vs_no-blk.png", height=3000, width=6000, units="px", res=300)
+grid.arrange(a,b,c, ncol=3, nrow=1, left="Sample ID")
+#grid.arrange(arrangeGrob(a, c, nrow=2), arrangeGrob(b, ncol=1), ncol=2, left="Sample ID")
+dev.off()
 ```
 
 #5. Detection of prey taxa

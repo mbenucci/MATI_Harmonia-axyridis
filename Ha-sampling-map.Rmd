@@ -78,11 +78,21 @@ All shapefiles were downloaded from:
 
 # UK map
 uk_map = fortify(readOGR("map/shapefiles/GB_IRworld.shp"))
+yor_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/TA_Woodland.shp"))
 ```
 
 ```{r}
 ggplot(uk_map) +
-  geom_polygon(aes(long,lat,group=group)) +
-  coord_fixed(1)
+  geom_polygon(aes(long,lat,group=group), fill=NA, color="black") +
+  geom_point(data=yorks_sites, aes(X,Y), shape=21, color="black", fill="black") +
+  geom_point(data=oxfo_sites, aes(X,Y), shape=21, color="black", fill="black") +
+  coord_fixed(1) +
+  theme_void()
+
+ggplot(yor_map) +
+  geom_polygon(data=yor_map, aes(long,lat, group=group)) +
+  geom_polygon(data=yor2_map, aes(long,lat, group=group)) +
+  geom_point(data=yorks_sites, aes(X,Y), shape=21, color="red", fill="red") +
+  coord_fixed(1, xlim=c(500000,510000), ylim=c(429000,440000))
 ```
 

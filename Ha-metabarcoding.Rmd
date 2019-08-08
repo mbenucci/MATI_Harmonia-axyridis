@@ -256,7 +256,7 @@ ggplot(full.retain, aes(library, value)) +
   theme_bw() + labs(x="Data sets", y="Sample read depth (N reads)")
 ```
 
-```{r read survival percentage, include=FALSE}
+```{r read survival percentage}
 (sum(ha.cover)/sum(ha.reads))*100
 (sum(ha1.cover)/sum(ha1.reads))*100
 (sum(ha2.cover)/sum(ha2.reads))*100
@@ -268,7 +268,7 @@ ggplot(full.retain, aes(library, value)) +
 
 We check the presence of unwanted taxa and high rank assignment into our data frames. In particular `unassigned` reads, and higher taxa such as unknown `Eukaryota`, `Fungi` and `Bacteria` are going to be removed since they won't be informative at all further downstream. To make the process efficient, we first remove all taxa that have no reads at all as a consequence of previous quality control steps, we then check for the presence of unwanted taxa.
 
-```{r remove unwanted taxa, include=TRUE, results="hide"}
+```{r remove unwanted taxa}
 ha.clean = subset(ha.cover, subset=rowSums(ha.cover) > 0)
 ha1.clean = subset(ha1.cover, subset=rowSums(ha1.cover) > 0)
 ha2.clean = subset(ha2.cover, subset=rowSums(ha2.cover) > 0)
@@ -290,7 +290,7 @@ ha2.clean = ha2.clean[!(rownames(ha2.clean)%in% disc.ha2),]
 
 We check for the survival of samples and DNA reads
 
-```{r retained reads and samples, include=FALSE}
+```{r retained reads and samples}
 (sum(ha.clean)/sum(ha.reads))*100
 (sum(ha1.clean)/sum(ha1.reads))*100
 (sum(ha2.clean)/sum(ha2.reads))*100
@@ -586,25 +586,39 @@ pred.blk = sum(norm.blk.reads$Harmonia_axyridis)
 chisq.test(rbind(c(prey.blk, prey.no.blk), c(pred.blk, pred.no.blk)))
 ```
 
-```{r prey reads boxplot, include=T, echo=F}
-boxplot(rowSums(no.blk.reads[,1:4][,colnames(no.blk.reads[,1:4]) != "Harmonia_axyridis"]), rowSums(blk.reads[,1:4][,colnames(blk.reads[,1:4]) != "Harmonia_axyridis"]), names = c("without blocking primers\n(N=50)", "with blocking primers\n(N=45)"), ylab="Prey DNA reads", main="DNA of prey taxa in Harmonia axyridis gut contents")
+```{r blk vs no-blk reads boxplot}
+norm.no.blk.reads$sample = "no blocking primers"
+norm.blk.reads$sample = "with blocking primers"
 
-boxplot(rowSums(norm.no.blk.reads[,colnames(norm.no.blk.reads) != "Harmonia_axyridis"]), rowSums(norm.blk.reads[,colnames(norm.blk.reads) != "Harmonia_axyridis"]), names = c("without blocking primers\n(N=50)", "with blocking primers\n(N=45)"), ylab="Normalised prey DNA reads", main="DNA of prey taxa in Harmonia axyridis gut contents")
+melt.no.blk = melt(norm.no.blk.reads)
+melt.blk = melt(norm.blk.reads)
+
+full.norm.reads = rbind(melt.no.blk, melt.blk)
+
+full.norm.reads$type = "NA"
+full.norm.reads[full.norm.reads$variable == "Harmonia_axyridis","type"] = "predator"
+full.norm.reads[full.norm.reads$variable != "Harmonia_axyridis","type"] = "prey"
+
+ggplot(full.norm.reads[full.norm.reads$value > 0,], aes(sample, value)) +
+  geom_boxplot(outlier.shape=NA) +
+  geom_jitter(alpha=0.4) +
+  facet_grid(type~., scales = "free") +
+  theme_bw() +
+  labs(x="", y="Normalised DNA reads (count)")
 ```
-
 
 ```{r}
 plot_no_blk = as.data.frame(norm.no.blk.reads[,1:4])
 plot_blk = as.data.frame(norm.blk.reads[,1:4])
 
-rownames(plot_no_blk)
-rownames(plot_blk)
+#rownames(plot_no_blk)
+#rownames(plot_blk)
 
 plot_no_blk = as.data.frame(t(plot_no_blk))
 plot_blk = as.data.frame(t(plot_blk))
 
-plot_no_blk$pcr = "no-blocking"
-plot_blk$pcr = "blocking"
+plot_no_blk$pcr = "no-blocking primers"
+plot_blk$pcr = "blocking primers"
 
 plot_no_blk$specie_type = "NA"
 plot_no_blk[grep("Harmonia_axyridis", rownames(plot_no_blk)),"specie_type"] = "predator"
@@ -620,15 +634,14 @@ plot_blk$specie = rownames(plot_blk)
 plot_no_blk[plot_no_blk == 0] <- NA
 plot_blk[plot_blk == 0] <- NA
 
-
 plot_frame = full_join(plot_blk, plot_no_blk)
 
 plot_frame["9",] = plot_frame[plot_frame$specie == "Pyrrhalta_viburni",]
-plot_frame["9","pcr"] = "blocking"
+plot_frame["9","pcr"] = "blocking primers"
 plot_frame["9",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
 
 plot_frame["10",] = plot_frame[plot_frame$specie == "Drepanosiphum_platanoidis",]
-plot_frame["10","pcr"] = "no-blocking"
+plot_frame["10","pcr"] = "no-blocking primers"
 plot_frame["10",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
 
 full_blk_melt = melt(plot_frame)
@@ -636,14 +649,16 @@ full_blk_melt = melt(plot_frame)
 str(full_blk_melt)
 
 ### BOXPLOT
-full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking","blocking"))
-ggplot(full_blk_melt,(aes(specie_type,log10(value)))) +
+png("R_images/boxplot_blk_vs_no-blk.png", height=4000, width=4000, units="px", res=300)
+full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
+ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
   geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
-  geom_jitter() +
-  labs(x="", y="Log10(normalised DNA reads)") +
+  geom_jitter(alpha=0.5) +
+  labs(x="", y="Log10(Normalised DNA reads)") +
   theme_bw() +
   theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
   facet_grid(.~pcr)
+dev.off()
 
 ### HEATMAP PLOT
 a<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Drepanosiphum_platanoidis","Pyrrhalta_viburni"),],(aes(pcr, variable))) +
@@ -766,14 +781,14 @@ num.taxa = melt(num.taxa)
 We detected a total of 49 interactions in Oxfordshire in May (N tot=63), only 10 interactions in Oxfordshire in October (N tot=59); while we detected 28 and 22 interactions respectively in Yorkshire in May (N tot=104) and October (N tot=99).
 
 ```{r guts occurrences plot, include=T, echo=F}
+png("R_images/Occurr_taxa_in_guts.png", width=4000, height=4000, units="px", res=300)
 ggplot(full.guts, aes(time,value)) +
   geom_bar(stat="identity", position="stack") +
   facet_grid(.~county) +
   coord_cartesian(ylim=c(0,80)) +
   scale_y_continuous(breaks=seq(0,80,10)) +
   labs(title="Total occurrence of taxa in Harmonia axyridis gut contents\nacross counties and seasons", y="N occurrences of taxa", x="Sampling time")
-
-ggsave("R_images/Occurr_taxa_in_guts.png", plot=last_plot(), device="png", width=15, height=8)
+dev.off()
 ```
 
 The individual _H. axyridis_ show a low diversity of prey utilised. Individuals from Oxfordshire in May showed a higher number of prey taxa detected (N prey taxa=10), while in comparison the same sites but from October showed the least number of prey detected (N prey=2 out of 59 individuals sampled). These results from October match our expecteation considering the mostly empty guts observed during dissections.
@@ -781,13 +796,13 @@ Yorskhire samples show as well a low prey diversity for both May (N prey=4 out o
 
 
 ```{r barplot N prey taxa}
+png("R_images/N_taxa_in_guts.png", width=4000, height=4000, units="px", res=300)
 ggplot(num.taxa, aes(time,value)) +
   geom_bar(stat="identity", position="stack") +
   facet_grid(.~county) +
   scale_y_continuous(breaks = seq(0,10,2)) +
   labs(title="N taxa detected in Harmonia axyridis gut contents across counties and seasons", y="N taxa", x="Sampling time")
-
-ggsave("R_images/N_taxa_in_guts.png", plot=last_plot(), device="png", width=15, height=8)
+dev.off()
 ```
 
 ```{r join reads.guts, include=T, echo=F}
@@ -812,7 +827,7 @@ melt.guts = melt.guts[melt.guts$value > 0,]
 
 color16=c("#E69F00","#56B4E9","#CC79A7","#009E73","#F0E442","#999999","#0072B2","#D55E00",
           "#000000","#993300","#9ACD32","#FF0000","#33FF33","#6633CC","#68228B","#0000FF")
-
+png("R_images/guts_composition_all_ha.png", width=4000, height=4000, units="px", res=300)
 ggplot(melt.guts, aes(sample_id, value)) +
   geom_bar(stat="identity", position="fill", aes(fill=variable)) +
   coord_flip() +
@@ -821,12 +836,13 @@ ggplot(melt.guts, aes(sample_id, value)) +
   theme(legend.position = "bottom") +
   labs(title="Gut content composition from read count data for all individuals\n(Harmonia DNA excluded)") +
   guides(fill=guide_legend(nrow=7, byrow=T))
+dev.off()
 
-ggsave("R_images/guts_composition_all_ha.png", plot=last_plot(), device="png", width=15, height=8)
 ```
 
 
 ```{r read.guts plot 2, include=T, echo=F}
+png("R_images/guts_composition_across_oxf_york.png", width=4000, height=4000, units="px", res=300)
 ggplot(melt.guts, aes(time, value)) +
   geom_bar(stat="identity", position="fill", aes(fill=variable)) +
   coord_flip() +
@@ -835,8 +851,7 @@ ggplot(melt.guts, aes(time, value)) +
   theme(legend.position = "bottom") +
   labs(title="Gut content composition from read count data across season and county\n(Harmonia DNA excluded)") +
   guides(fill=guide_legend(nrow=7, byrow=T))
-
-ggsave("R_images/guts_composition_across_oxf_york.png", plot=last_plot(), device="png", width=15, height=8)
+dev.off()
 ```
 
 We now investigate the arboreal communities associated with the _Harmonia axyridis_ sampled in both counties across the two separate seasons.
@@ -873,14 +888,13 @@ melt.comms = subset(melt.comms, subset=melt.comms$value > 0)
 
 #color19=c("#E69F00", "#56B4E9", "#CC79A7", "#009E73", "#F0E442", "#999999", "#0072B2", "#D55E00",  "#000000","#993300","#003333","#333300","#33FF33","#6633CC","#CC3300","#FF00CC","#CCFFCC", "#6633CC","#68228B")
 
+png("R_images/arboreal_community_pres-abs.png", height=4000, width=4000, units="px", res=300)
 ggplot(melt.comms, aes(time, value)) +
   geom_bar(stat="identity", position="fill", aes(fill=variable)) +
   facet_grid(.~county, scales="free") +
-  theme(legend.position="none") +
+  theme(legend.position="none")
 #  scale_fill_manual(values=color19) +
-  labs(title = "Arboreal community (presence/absence data) from DNA metabarcoding")
-
-ggsave("R_images/arboreal_community_pres-abs.png", plot=last_plot(), device="png", width=15, height=8)
+dev.off()
 ```
 
 ```{r join ratio.comms, include=F}
@@ -920,16 +934,16 @@ adonis(dist.sp.com~fact_county*fact_time, permutations = 10000, method="euclid")
 ```
 
 ```{r permanova low rank community plot, include=T, echo=F}
-plot(meta.comms<-metaMDS(dist.sp.com,zerodist=ignore, k=2, trymax=200),type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6),
-main="Species level community PERMANOVA by county and season")
+png("R_images/NMDS_arboreal_community.png", height=4000, width=4000, units="px", res=300)
+plot(meta.comms<-metaMDS(dist.sp.com,zerodist=ignore, k=2, trymax=200),type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6))
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
 points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
 points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="Oct"),col="blue", pch=15)
 ordispider(meta.comms,group=fact_all[,1], col=c("darkorange", "yellow"),label=T)
 ordiellipse(meta.comms,group=fact_all[,2],kind="ehull", lty=c(1,3),label=T, lwd=2)
-
-scores(meta.comms$stress)
+text(-0.4,-0.6, scores(meta.comms$stress))
+dev.off()
 ```
 
 Rarefaction curves based on taxa assigned at specie level, show that to reach the plateau of species richness in the communities, more samples should have been collected, or more sites should have been included; even though the diversity values appear to be much closer to the plateau.
@@ -974,14 +988,16 @@ adonis(dist.highcomm~fact_county*fact_time, permutations = 10000, method="euclid
 ```
 
 ```{r permanova highranks taxa community plot, include=T, echo=F}
-plot(meta.highcomms<-metaMDS(dist.highcomm, zerodist=ignore), type="n", ylim=c(-0.7,0.4),
-main="High rank community PERMANOVA by county and season\n(red = Oxf(May), blu = York(May), black = Oxf(Oct), gray = York(Oct)")
+png("R_images/NMDS_highrank_community.png", height=4000, width=4000, units="px", res=300)
+plot(meta.highcomms<-metaMDS(dist.highcomm, zerodist=ignore), type="n", ylim=c(-0.7,0.4))
 points(meta.highcomms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
 points(meta.highcomms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
 points(meta.highcomms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
 points(meta.highcomms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="Oct"),col="blue", pch=15)
 ordispider(meta.highcomms,group=fact_all[,1], col=c("green", "green4"),label=T)
 ordiellipse(meta.highcomms,group=fact_all[,2],kind="ehull", lty=c(1,3),label=T, lwd=2)
+text(0.4, -0.6, scores(meta.highcomms$stress))
+dev.off()
 ```
 
 ```{r rarefaction curves on community, include=T, echo=F}
@@ -1046,14 +1062,16 @@ meta.guts = metaMDS(dist.guts, zerodist=ignore, trymax=100)
 ```
 
 ```{r permanova guts plot, include=T, echo=F}
-plot(meta.guts,type="n",
-main="gut contents PERMANOVA")
+png("R_images/NMDS_gut_contents.png", height=4000, width=4000, units="px", res=300)
+plot(meta.guts,type="n")
 points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="May"),col="black",pch=1)
 points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="May"),col="blue",pch=22)
 points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="Oct"),col="black",pch=16)
 points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="Oct"),col="blue",pch=15)
 ordispider(meta.guts,group=fact_all.g[,1], col=c("green", "green4"),label=T)
 ordiellipse(meta.guts,group=fact_all.g[,2],kind="ehull", lty=c(1,3),label=T,lwd=2)
+text(0.7,-0.5, scores(meta.guts$stress))
+dev.off()
 ```
 
 From the rarefaction curves of both species Richness and Shannon diversity extrapolated from the gut contents analysis it appear that more individuals might need to be collected in order to increase the number of detections from the gut contents.
@@ -1083,7 +1101,10 @@ ggiNEXT(raref.guts_inext) +
   facet_grid(order~., labeller=as_labeller(strip_lab), scales="free")
 ```
 
-```{r diet/niche breath index}
+# NOTE: 
+to change niche null model into diet breadth...also...is it needed? What's the purpose of niche breadth?
+
+```{r diet/niche null model index}
 niche.ratio = as.data.frame(ratio.guts)
 niche.ratio[,1:15][niche.ratio[,1:15] > 0] <- 1
 
@@ -1133,6 +1154,9 @@ test.dcweb = sortweb(web.ha, sort.order="seq", sequence=ha_order)
 colnames(web.ha)
 rownames(web.dc)
 ```
+
+#NOTE 2:
+Change order of network to match with parasitoid and Harmonia!!!
 
 ```{r}
 plotweb(web.ha, y.width.low=0.1, y.width.high=0.05,	y.lim=c(0,3), adj.high=c(0.5,1.5), high.lab.dis=0, low.lablength=5, col.high="white", low.lab.dis=0.03, low.spacing=0.02, col.interaction=c("orange","yellow","blue","red"))

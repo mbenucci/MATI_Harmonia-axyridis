@@ -586,28 +586,7 @@ pred.blk = sum(norm.blk.reads$Harmonia_axyridis)
 chisq.test(rbind(c(prey.blk, prey.no.blk), c(pred.blk, pred.no.blk)))
 ```
 
-```{r blk vs no-blk reads boxplot}
-norm.no.blk.reads$sample = "no blocking primers"
-norm.blk.reads$sample = "with blocking primers"
-
-melt.no.blk = melt(norm.no.blk.reads)
-melt.blk = melt(norm.blk.reads)
-
-full.norm.reads = rbind(melt.no.blk, melt.blk)
-
-full.norm.reads$type = "NA"
-full.norm.reads[full.norm.reads$variable == "Harmonia_axyridis","type"] = "predator"
-full.norm.reads[full.norm.reads$variable != "Harmonia_axyridis","type"] = "prey"
-
-ggplot(full.norm.reads[full.norm.reads$value > 0,], aes(sample, value)) +
-  geom_boxplot(outlier.shape=NA) +
-  geom_jitter(alpha=0.4) +
-  facet_grid(type~., scales = "free") +
-  theme_bw() +
-  labs(x="", y="Normalised DNA reads (count)")
-```
-
-```{r}
+```{r blk vs no-blk plot}
 plot_no_blk = as.data.frame(norm.no.blk.reads[,1:4])
 plot_blk = as.data.frame(norm.blk.reads[,1:4])
 
@@ -645,22 +624,22 @@ plot_frame["10","pcr"] = "no-blocking primers"
 plot_frame["10",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
 
 full_blk_melt = melt(plot_frame)
+```
 
-str(full_blk_melt)
-
-### BOXPLOT
+```{r blk vs no-blk boxplot}
 png("R_images/boxplot_blk_vs_no-blk.png", height=4000, width=4000, units="px", res=300)
 full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
 ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
   geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
-  geom_jitter(alpha=0.5) +
+  geom_jitter(alpha=0.5, size=4) +
   labs(x="", y="Log10(Normalised DNA reads)") +
   theme_bw() +
-  theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  facet_grid(.~pcr)
+  facet_grid(.~pcr) +
+  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15)) #,plot.margin=unit(c(0.25,0,0.25,0.7), unit="cm"))
 dev.off()
+```
 
-### HEATMAP PLOT
+```{r blk vs no-blk heatmap}
 a<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Drepanosiphum_platanoidis","Pyrrhalta_viburni"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
   scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="transparent", limits=c(1,70), name="Normalised\nDNA reads\n") +
@@ -794,7 +773,6 @@ dev.off()
 The individual _H. axyridis_ show a low diversity of prey utilised. Individuals from Oxfordshire in May showed a higher number of prey taxa detected (N prey taxa=10), while in comparison the same sites but from October showed the least number of prey detected (N prey=2 out of 59 individuals sampled). These results from October match our expecteation considering the mostly empty guts observed during dissections.
 Yorskhire samples show as well a low prey diversity for both May (N prey=4 out of 104 sampled), and October (N prey=7 out of 99 individuals sampled).
 
-
 ```{r barplot N prey taxa}
 png("R_images/N_taxa_in_guts.png", width=4000, height=4000, units="px", res=300)
 ggplot(num.taxa, aes(time,value)) +
@@ -804,6 +782,7 @@ ggplot(num.taxa, aes(time,value)) +
   labs(title="N taxa detected in Harmonia axyridis gut contents across counties and seasons", y="N taxa", x="Sampling time")
 dev.off()
 ```
+
 
 ```{r join reads.guts, include=T, echo=F}
 reads.guts = full_join(ha.oxf, ha.yor)
@@ -840,8 +819,7 @@ dev.off()
 
 ```
 
-
-```{r read.guts plot 2, include=T, echo=F}
+```{r read.guts plot 2}
 png("R_images/guts_composition_across_oxf_york.png", width=4000, height=4000, units="px", res=300)
 ggplot(melt.guts, aes(time, value)) +
   geom_bar(stat="identity", position="fill", aes(fill=variable)) +
@@ -853,6 +831,147 @@ ggplot(melt.guts, aes(time, value)) +
   guides(fill=guide_legend(nrow=7, byrow=T))
 dev.off()
 ```
+
+PERMANOVA and Rarefaction curves on gut contents.
+
+```{r joining guts reads}
+ratio.guts = as.data.frame(reads.guts)
+ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% "Hemiptera")]
+```
+
+PERMANOVA analysis on the gut contents show a significant influence from all variables (season: p-value=9.999e-05; county: p-value=9.999e-05; both: p-value=2e-04). It worths mentioning though that the residual values for these samples are all high; so we can assume that the influence of the low number of samples positive for prey taxa could have skewed the results.
+
+
+```{r permanova guts reads}
+info.guts = ratio.guts[,colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county")]
+ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
+ratio.guts = ratio.guts/rowSums(ratio.guts)
+
+ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("Harmonia_axyridis","Homo_sapiens"))]
+
+ratio.guts = cbind(ratio.guts, info.guts)
+rownames(ratio.guts) = ratio.guts$sample_id
+
+ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,1:15]) > 0)
+
+matrix.ratio.guts = as.matrix(ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+
+fact_county.g = matrix(c(ratio.guts$county),ncol=1) 
+fact_time.g = matrix(c(ratio.guts$time), ncol=1)
+fact_all.g = matrix(c(ratio.guts$county, ratio.guts$time), ncol=2)
+
+dist.guts = vegdist(matrix.ratio.guts, method="euclidean")
+
+adonis(dist.guts~fact_county.g*fact_time.g, permutations = 10000, method="euclid")
+```
+
+```{r metamds guts}
+meta.guts = metaMDS(dist.guts, zerodist=ignore, trymax=100)
+```
+
+```{r permanova guts plot}
+png("R_images/NMDS_gut_contents.png", height=4000, width=4000, units="px", res=300)
+plot(meta.guts,type="n")
+points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="May"),col="black",pch=1)
+points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="May"),col="blue",pch=22)
+points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="Oct"),col="black",pch=16)
+points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="Oct"),col="blue",pch=15)
+ordispider(meta.guts,group=fact_all.g[,1], col=c("green", "green4"),label=T)
+ordiellipse(meta.guts,group=fact_all.g[,2],kind="ehull", lty=c(1,3),label=T,lwd=2)
+text(0.7,-0.5, scores(meta.guts$stress))
+dev.off()
+```
+
+From the rarefaction curves of both species Richness and Shannon diversity extrapolated from the gut contents analysis it appear that more individuals might need to be collected in order to increase the number of detections from the gut contents.
+
+```{r rarefaction curves on guts, include=T, echo=F}
+abund.guts = as.data.frame(ratio.guts)
+abund.guts[,1:15][abund.guts[,1:15] > 0] <- 1
+
+abund.guts = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
+
+raref.guts = t(abund.guts)
+colnames(raref.guts) = c("Oxfordshire May","Yorkshire May","Oxfordshire Oct","Yorkshire Oct")
+raref.guts = raref.guts[!c(rownames(raref.guts) %in% c("county","time")),]
+raref.guts = as.data.frame(raref.guts)
+
+raref.guts$`Oxfordshire May` = as.numeric(as.character(raref.guts$`Oxfordshire May`))
+raref.guts$`Yorkshire May` = as.numeric(as.character(raref.guts$`Yorkshire May`))
+raref.guts$`Oxfordshire Oct` = as.numeric(as.character(raref.guts$`Oxfordshire Oct`))
+raref.guts$`Yorkshire Oct` = as.numeric(as.character(raref.guts$`Yorkshire Oct`))
+
+raref.guts_inext = iNEXT(raref.guts, q=c(0,1), datatype = "abundance", se=T, endpoint=150)
+
+strip_lab=c("0"="Species Richness","1"="Shannon Diversity")
+ggiNEXT(raref.guts_inext) +
+  labs(y="", x="Number detections") +
+  theme(legend.position="bottom") +
+  facet_grid(order~., labeller=as_labeller(strip_lab), scales="free")
+```
+
+# NOTE: 
+to change niche null model into diet breadth...also...is it needed? What's the purpose of niche breadth?
+
+```{r diet/niche null model index}
+niche.ratio = as.data.frame(ratio.guts)
+niche.ratio[,1:15][niche.ratio[,1:15] > 0] <- 1
+
+niche.ratio = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr"))] %>% group_by(time, county, site) %>% summarise_all(funs(sum)))
+
+head(niche.ratio)
+
+#niche.ratio = niche.ratio[,!(colnames(niche.ratio) %in% "Dinocampus_coccinellae")]
+
+nrow(niche.ratio)
+
+niche.null.model.test = niche_null_model(speciesData=niche.ratio[,3:ncol(niche.ratio)], algo="ra2", metric="pianka", suppressProg=T, nReps=5000)
+
+summary(niche.null.model.test)
+plot(niche.null.model.test,type="hist")
+plot(niche.null.model.test,type="niche")
+```
+
+#6. Network of interactions
+
+Tripartite network
+
+```{r tripartite gut contents, include=T, echo=F, fig.keep="last"}
+rownames(abund.guts) = c("Oxf_May-Ha","York_May-Ha","Oxf_Oct-Ha","York_Oct-Ha")
+abund.guts = abund.guts[,!c(colnames(abund.guts) %in% c("time","county"))]
+
+abund.guts = as.data.frame(t(abund.guts))
+
+rownames(abund.guts)[10]
+rownames(abund.guts)[10] <- "Chironomus"
+
+web.ha = abund.guts[!c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
+web.dc = abund.guts[c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
+
+str(web.ha)
+str(web.dc)
+
+web.dc = as.data.frame(t(web.dc))
+web.ha = as.matrix(web.ha)
+web.dc = as.matrix(web.dc)
+
+ha_order = list(seq.higher=c("Oxf_May-Ha","York_May-Ha","Oxf_Oct-Ha","York_Oct-Ha"))
+
+test.haweb = sortweb(web.ha, sort.order="seq", sequence=ha_order)
+test.dcweb = sortweb(web.ha, sort.order="seq", sequence=ha_order)
+
+colnames(web.ha)
+rownames(web.dc)
+```
+
+#NOTE 2:
+Change order of network to match with parasitoid and Harmonia!!!
+
+```{r}
+plotweb(web.ha, y.width.low=0.1, y.width.high=0.05,	y.lim=c(0,3), adj.high=c(0.5,1.5), high.lab.dis=0, low.lablength=5, col.high="white", low.lab.dis=0.03, low.spacing=0.02, col.interaction=c("orange","yellow","blue","red"))
+plotweb(web.dc, y.width.low=0.05, y.width.high=0.1, low.y=1.5, high.y=2.5, low.lab.dis=0, low.spacing=0.166, adj.low=c(0.5,1.1), low.plot=F, arrow="down", add=T, empty=F, col.interaction=c("orange","yellow","blue","red"))
+```
+
+#7. Community composition.
 
 We now investigate the arboreal communities associated with the _Harmonia axyridis_ sampled in both counties across the two separate seasons.
 
@@ -971,6 +1090,7 @@ ggiNEXT(comms_inext) +
   facet_grid(order~., labeller=as_labeller(strip_labels), scales="free") +
   ggtitle("Species level rarefaction curves on community")
 ```
+
 Similarly to the taxa assigned to species level we ran the analysis also on the taxa assigned to higher ranks (family, order, etc.). and the results of both PERMANOVA (season: p-value=0.0008999; county: p-value=0.2576742; both variables: p-value=0.0391961) and rarefaction curves follow similar trends as per the species. Differences are in the rarefaction curves for the species richness, which appear to reach the plateau earlier than for the species. This might though be skewed by the lower number of taxa that were assigned to a higher rank.
 
 ```{r high rank communities, include=F}
@@ -1024,150 +1144,6 @@ ggiNEXT(comms_inext) +
   ggtitle("High rank taxa rarefaction curves on community")
 ```
 
-
-PERMANOVA and Rarefaction curves on gut contents.
-
-```{r joining guts reads, include=F}
-ratio.guts = as.data.frame(reads.guts)
-ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% "Hemiptera")]
-```
-PERMANOVA analysis on the gut contents show a significant influence from all variables (season: p-value=9.999e-05; county: p-value=9.999e-05; both: p-value=2e-04). It worths mentioning though that the residual values for these samples are all high; so we can assume that the influence of the low number of samples positive for prey taxa could have skewed the results.
-
-
-```{r permanova guts reads, include=T, echo=F}
-info.guts = ratio.guts[,colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county")]
-ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
-ratio.guts = ratio.guts/rowSums(ratio.guts)
-
-ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("Harmonia_axyridis","Homo_sapiens"))]
-
-ratio.guts = cbind(ratio.guts, info.guts)
-rownames(ratio.guts) = ratio.guts$sample_id
-
-ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,1:15]) > 0)
-
-matrix.ratio.guts = as.matrix(ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))])
-
-fact_county.g = matrix(c(ratio.guts$county),ncol=1) 
-fact_time.g = matrix(c(ratio.guts$time), ncol=1)
-fact_all.g = matrix(c(ratio.guts$county, ratio.guts$time), ncol=2)
-
-dist.guts = vegdist(matrix.ratio.guts, method="euclidean")
-
-adonis(dist.guts~fact_county.g*fact_time.g, permutations = 10000, method="euclid")
-```
-
-```{r metamds guts, include=F, echo=F}
-meta.guts = metaMDS(dist.guts, zerodist=ignore, trymax=100)
-```
-
-```{r permanova guts plot, include=T, echo=F}
-png("R_images/NMDS_gut_contents.png", height=4000, width=4000, units="px", res=300)
-plot(meta.guts,type="n")
-points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="May"),col="black",pch=1)
-points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="May"),col="blue",pch=22)
-points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="Oct"),col="black",pch=16)
-points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="Oct"),col="blue",pch=15)
-ordispider(meta.guts,group=fact_all.g[,1], col=c("green", "green4"),label=T)
-ordiellipse(meta.guts,group=fact_all.g[,2],kind="ehull", lty=c(1,3),label=T,lwd=2)
-text(0.7,-0.5, scores(meta.guts$stress))
-dev.off()
-```
-
-From the rarefaction curves of both species Richness and Shannon diversity extrapolated from the gut contents analysis it appear that more individuals might need to be collected in order to increase the number of detections from the gut contents.
-
-```{r rarefaction curves on guts, include=T, echo=F}
-abund.guts = as.data.frame(ratio.guts)
-abund.guts[,1:15][abund.guts[,1:15] > 0] <- 1
-
-abund.guts = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
-
-raref.guts = t(abund.guts)
-colnames(raref.guts) = c("Oxfordshire May","Yorkshire May","Oxfordshire Oct","Yorkshire Oct")
-raref.guts = raref.guts[!c(rownames(raref.guts) %in% c("county","time")),]
-raref.guts = as.data.frame(raref.guts)
-
-raref.guts$`Oxfordshire May` = as.numeric(as.character(raref.guts$`Oxfordshire May`))
-raref.guts$`Yorkshire May` = as.numeric(as.character(raref.guts$`Yorkshire May`))
-raref.guts$`Oxfordshire Oct` = as.numeric(as.character(raref.guts$`Oxfordshire Oct`))
-raref.guts$`Yorkshire Oct` = as.numeric(as.character(raref.guts$`Yorkshire Oct`))
-
-raref.guts_inext = iNEXT(raref.guts, q=c(0,1), datatype = "abundance", se=T, endpoint=150)
-
-strip_lab=c("0"="Species Richness","1"="Shannon Diversity")
-ggiNEXT(raref.guts_inext) +
-  labs(y="", x="Number detections") +
-  theme(legend.position="bottom") +
-  facet_grid(order~., labeller=as_labeller(strip_lab), scales="free")
-```
-
-# NOTE: 
-to change niche null model into diet breadth...also...is it needed? What's the purpose of niche breadth?
-
-```{r diet/niche null model index}
-niche.ratio = as.data.frame(ratio.guts)
-niche.ratio[,1:15][niche.ratio[,1:15] > 0] <- 1
-
-niche.ratio = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr"))] %>% group_by(time, county, site) %>% summarise_all(funs(sum)))
-
-head(niche.ratio)
-
-#niche.ratio = niche.ratio[,!(colnames(niche.ratio) %in% "Dinocampus_coccinellae")]
-
-nrow(niche.ratio)
-
-niche.null.model.test = niche_null_model(speciesData=niche.ratio[,3:ncol(niche.ratio)], algo="ra2", metric="pianka", suppressProg=T, nReps=5000)
-
-summary(niche.null.model.test)
-plot(niche.null.model.test,type="hist")
-plot(niche.null.model.test,type="niche")
-```
-
-#6. Network of interactions
-
-Tripartite network
-
-```{r tripartite gut contents, include=T, echo=F, fig.keep="last"}
-rownames(abund.guts) = c("Oxf_May-Ha","York_May-Ha","Oxf_Oct-Ha","York_Oct-Ha")
-abund.guts = abund.guts[,!c(colnames(abund.guts) %in% c("time","county"))]
-
-abund.guts = as.data.frame(t(abund.guts))
-
-rownames(abund.guts)[10]
-rownames(abund.guts)[10] <- "Chironomus"
-
-web.ha = abund.guts[!c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
-web.dc = abund.guts[c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
-
-str(web.ha)
-str(web.dc)
-
-web.dc = as.data.frame(t(web.dc))
-web.ha = as.matrix(web.ha)
-web.dc = as.matrix(web.dc)
-
-ha_order = list(seq.higher=c("Oxf_May-Ha","York_May-Ha","Oxf_Oct-Ha","York_Oct-Ha"))
-
-test.haweb = sortweb(web.ha, sort.order="seq", sequence=ha_order)
-test.dcweb = sortweb(web.ha, sort.order="seq", sequence=ha_order)
-
-colnames(web.ha)
-rownames(web.dc)
-```
-
-#NOTE 2:
-Change order of network to match with parasitoid and Harmonia!!!
-
-```{r}
-plotweb(web.ha, y.width.low=0.1, y.width.high=0.05,	y.lim=c(0,3), adj.high=c(0.5,1.5), high.lab.dis=0, low.lablength=5, col.high="white", low.lab.dis=0.03, low.spacing=0.02, col.interaction=c("orange","yellow","blue","red"))
-plotweb(web.dc, y.width.low=0.05, y.width.high=0.1, low.y=1.5, high.y=2.5, low.lab.dis=0, low.spacing=0.166, adj.low=c(0.5,1.1), low.plot=F, arrow="down", add=T, empty=F, col.interaction=c("orange","yellow","blue","red"))
-```
-
-#7. Community composition.
-
-```{r}
-
-```
 
 ```{r log session info}
 sink("log_session_analysis.txt")

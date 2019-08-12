@@ -72,19 +72,26 @@ In case we need to transform coordinates, the code below transforms the shapefil
 All shapefiles were downloaded from:
 
 `OS Open Map Local [Shape geospatial data], Scale 1:, Tile(s): TA, TF, TG, TL, SE, SK, SY, SZ, Updated: December 2017, Ordnance Survey, Using: EDINA Digimap Ordnance Survey Service, [http://digimap.edina.ac.uk/], Downloaded: July 2019`
+`OS Greenspace [Shape geospatial data], Scale 1:, Updated: December 2017, Ordnance Survey, Using: EDINA Digimap Ordnance Survey Service, [http://digimap.edina.ac.uk/], Downloaded: July 2019`
+
 
 ```{r shapefiles}
 # We load all the shapefiles and transform them to be read by ggplot.
 
 # UK map
 uk_map = fortify(readOGR("map/shapefiles/GB_IRworld.shp"))
-green_map = fortify(readOGR("../../../../GIS/open-greenspace_3054882/GB_GreenspaceSite.shp"))
 yor_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/TA_Woodland.shp"))
 yor2_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/TA_Road.shp"))
-#oxf_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SU_Woodland.shp"))
+oxf_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SU_Woodland.shp"))
 #oxf2_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SU_Road.shp"))
-#oxf3_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SP_Woodland.shp"))
+oxf3_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SP_Woodland.shp"))
 #oxf4_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SP_Road.shp"))
+```
+
+To load the OS Greenspace shapefiles takes quite some time. So if you, like me, don't have a super-duper laptop and don't have time to load on HPC or similar, just grab a coffee. Lucky side is that it's UK-wide, so you need to load it once for all maps.
+
+```{r greenspace}
+green_map = fortify(readOGR("../../../../GIS/open-greenspace_3054882/GB_GreenspaceSite.shp"))
 ```
 
 ```{r}
@@ -97,6 +104,7 @@ ggplot(uk_map) +
 
 png("map/test.png", height = 4000, width = 4000, units="px", res=300)
 ggplot(yor_map) +
+  geom_polygon(data=green_map, aes(long, lat, group=group), fill="green") +
   geom_polygon(data=yor_map, aes(long,lat, group=group)) +
   geom_path(data=yor2_map, aes(x=long, y=lat, group=group)) +
   geom_point(data=yorks_sites, aes(X,Y), shape=21, color="red", fill="red") +
@@ -105,12 +113,13 @@ dev.off()
 
 png("map/test_2.png", height = 4000, width = 4000, units="px", res=300)
 ggplot(oxf_map) +
+  geom_polygon(data=green_map, aes(long, lat, group=group), fill="green") +
   geom_polygon(data=oxf_map, aes(long,lat, group=group)) +
-  geom_path(data=oxf2_map, aes(x=long, y=lat, group=group)) +
   geom_polygon(data=oxf3_map, aes(long,lat, group=group)) +
-  geom_path(data=oxf4_map, aes(x=long, y=lat, group=group)) +
-  geom_point(data=oxfo_sites, aes(X,Y), shape=21, color="red", fill="red") #+
-  #coord_fixed(1, xlim=c(500000,510000), ylim=c(429000,440000))
+  #geom_path(data=oxf2_map, aes(x=long, y=lat, group=group)) +
+  #geom_path(data=oxf4_map, aes(x=long, y=lat, group=group)) +
+  geom_point(data=oxfo_sites, aes(X,Y), shape=21, color="red", fill="red") +
+  coord_fixed(1, xlim=c(441000,469000), ylim=c(178000,206000))
 dev.off()
 ```
 

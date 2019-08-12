@@ -33,7 +33,7 @@ ls()
 The analysis was done on R (R Core Team, 2018) using the following environment and packages.
 
 ```{r packages loading, include=F}
-pack.list = c("aod","bipartite","devtools","dplyr","EcoSimR","ggplot2","gplots","gridExtra","iNEXT","lattice","lme4","lmtest","MASS","mgcv","network","plyr","reshape2","stringi","UpSetR","vegan")
+pack.list = c("aod","bipartite","cowplot","devtools","dplyr","EcoSimR","ggplot2","gplots","gridExtra","iNEXT","lattice","lme4","lmtest","MASS","mgcv","network","plyr","reshape2","stringi","UpSetR","vegan")
 new.packages = pack.list[!(pack.list %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos="https://cran.rstudio.com")
 lapply(pack.list, require, character.only=T)
@@ -537,32 +537,6 @@ blk.reads = blk.reads[,!(colnames(blk.reads) %in% "Lumbricus_rubellus")]
 blk.ratio = blk.ratio[,!(colnames(blk.ratio) %in% "Lumbricus_rubellus")]
 ```
 
-After all the previous quality controls and contamination controls we retained the great majority of the gut content samples for the sequencing run without blocking primers (all N=50 samples retained), and with blocking primers (N=45 out of N=50 initial samples). The Chi-squared test for difference show us that there is a significant difference in the sum of the N reads belonging to preys and predator obtained from sequencing without and with blocking primers (Chi-squared = 16510, df = 1, p-value < 2.2e-16).
-
-```{r barplot blk primers, include=T, echo=F}
-full.blk.join = full_join(no.blk.ratio, blk.ratio)
-full.blk.join = melt(full.blk.join)
-
-p1 = ggplot(full.blk.join, aes(pcr, value)) +
-  geom_bar(stat="identity",position="fill", aes(fill=variable)) +
-  coord_flip() +
-  labs(x=" ", y=" ") +
-  theme(legend.position="none") +
-  geom_rect(aes(ymin=0.95,ymax=1.01,xmin=0.5,xmax=2.5), lty=1, lwd=1, color="red", fill=NA)
-
-p2 = ggplot(full.blk.join, aes(pcr, value)) +
-  geom_bar(stat="identity",position="fill", aes(fill=variable)) +
-  coord_flip(ylim=c(0.95,1.0)) +
-  labs(x=" ", y="prey:predator ratio") +
-  theme(legend.position="bottom", legend.title=element_blank(), legend.margin=margin(1,20,1,1)) +
-  geom_rect(aes(ymin=0.95,ymax=1.002,xmin=0.5,xmax=2.5), lty=1, lwd=1, color="red", fill=NA) +
-  guides(fill=guide_legend(nrow=2, byrow=T))
-
-pa = grid.arrange(p1, p2, nrow=2)
-
-ggsave("R_images/blk_vs_no-blk.png", plot=pa, device="png", width=15, height=8)
-```
-
 Before testing whether the blocking primers had an impact on the DNA reads of prey and predator, we needed to make sure that both subsets were comparable in terms of coverage. The Wilcoxon test showed that the coverage of the two subsets were significanlty different (Wilcoxon test: W = 1492, p-value = 0.0063). We decided therefore to include a normalisation step by dividing DNA reads by the total number of reads in each set, and multiplying by 1*10e6 (Wilcoxon test on normalised reads: W = 1144, p-value = 0.8903).
 
 ```{r normalisation, include=F}
@@ -574,7 +548,7 @@ norm.blk.reads = (blk.reads[,1:4]/sum(blk.reads[,1:4]))*1000000
 wilcox.test(rowSums(norm.no.blk.reads), rowSums(norm.blk.reads))
 ```
 
-We could now test whether there was an association between the use of blocking primers and the number of reads that we obtained for the prey items and the predator, and we obtain a significant association between the presence of the blocking primers and the number of reads obtained from the sequencing (Chi-squared test: Chi-squared = 13956, df = 1, p-value < 2.2e-16)
+After all the previous quality controls and contamination controls we retained the great majority of the gut content samples for the sequencing run without blocking primers (all N=50 samples retained), and with blocking primers (N=45 out of N=50 initial samples). We could now test whether there was an association between the use of blocking primers and the number of reads that we obtained for the prey items and the predator, and we obtain a significant association between the presence of the blocking primers and the number of reads obtained from the sequencing (Chi-squared test: Chi-squared = 13956, df = 1, p-value < 2.2e-16)
 
 ```{r chi-squared on normalised, include=T, echo=F}
 prey.no.blk = sum(norm.no.blk.reads[,colnames(norm.no.blk.reads) != "Harmonia_axyridis"])
@@ -589,9 +563,6 @@ chisq.test(rbind(c(prey.blk, prey.no.blk), c(pred.blk, pred.no.blk)))
 ```{r blk vs no-blk plot}
 plot_no_blk = as.data.frame(norm.no.blk.reads[,1:4])
 plot_blk = as.data.frame(norm.blk.reads[,1:4])
-
-#rownames(plot_no_blk)
-#rownames(plot_blk)
 
 plot_no_blk = as.data.frame(t(plot_no_blk))
 plot_blk = as.data.frame(t(plot_blk))
@@ -615,6 +586,8 @@ plot_blk[plot_blk == 0] <- NA
 
 plot_frame = full_join(plot_blk, plot_no_blk)
 
+# We set the undetected taxa in either frame equal to "NA".
+
 plot_frame["9",] = plot_frame[plot_frame$specie == "Pyrrhalta_viburni",]
 plot_frame["9","pcr"] = "blocking primers"
 plot_frame["9",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
@@ -627,15 +600,26 @@ full_blk_melt = melt(plot_frame)
 ```
 
 ```{r blk vs no-blk boxplot}
-png("R_images/boxplot_blk_vs_no-blk.png", height=4000, width=4000, units="px", res=300)
 full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
-ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
+box_a = ggplot(full_blk_melt,(aes(specie_type, value))) +
+  geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
+  geom_jitter(alpha=0.5, size=4) +
+  labs(x="", y="Normalised DNA reads") +
+  theme_bw() +
+  facet_grid(.~pcr) +
+  theme(legend.position="NA", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15))
+
+full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
+box_b = ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
   geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
   geom_jitter(alpha=0.5, size=4) +
   labs(x="", y="Log10(Normalised DNA reads)") +
   theme_bw() +
   facet_grid(.~pcr) +
-  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15)) #,plot.margin=unit(c(0.25,0,0.25,0.7), unit="cm"))
+  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15))
+
+png("R_images/boxplot_blk_vs_no-blk.png", height=4000, width=4000, units="px", res=300)
+cow_plot(box_a, box_b, label=c("a)","b)"), ncol=2, nrow=1)
 dev.off()
 ```
 
@@ -660,7 +644,6 @@ c<-ggplot(full_blk_melt[full_blk_melt$specie_type %in% "predator",],(aes(pcr, va
 
 png("R_images/heatmap_blk_vs_no-blk.png", height=3000, width=6000, units="px", res=300)
 grid.arrange(a,b,c, ncol=3, nrow=1, left="Sample ID")
-#grid.arrange(arrangeGrob(a, c, nrow=2), arrangeGrob(b, ncol=1), ncol=2, left="Sample ID")
 dev.off()
 ```
 

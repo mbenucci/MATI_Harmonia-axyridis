@@ -830,7 +830,10 @@ rownames(ratio.guts) = ratio.guts$sample_id
 
 ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,1:15]) > 0)
 
-matrix.ratio.guts = as.matrix(ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+matrix.ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
+matrix.ratio.guts$Dinocampus_coccinellae = 0
+
+matrix.ratio.guts[,][matrix.ratio.guts[] > 0] = 1
 
 fact_county.g = matrix(c(ratio.guts$county),ncol=1) 
 fact_time.g = matrix(c(ratio.guts$time), ncol=1)
@@ -838,22 +841,22 @@ fact_all.g = matrix(c(ratio.guts$county, ratio.guts$time), ncol=2)
 
 dist.guts = vegdist(matrix.ratio.guts, method="euclidean")
 
-adonis(dist.guts~fact_county.g*fact_time.g, permutations = 10000, method="euclid")
+adonis(dist.guts~fact_county.g*fact_time.g, permutations = 9999, method="euclidean")
 ```
 
 ```{r metamds guts}
-meta.guts = metaMDS(dist.guts, zerodist=ignore, trymax=200)
+meta.guts = metaMDS(dist.guts, trymax=200, distance="euclidean")
 ```
 
 ```{r permanova guts plot}
 png("R_images/NMDS_gut_contents.png", height=4000, width=4000, units="px", res=300)
 plot(meta.guts,type="n")
-points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="May"),col="black",pch=1)
-points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="May"),col="blue",pch=22)
-points(meta.guts, select=which(fact_all.g[,1]=="Oxfordshire" & fact_all.g[,2]=="Oct"),col="black",pch=16)
-points(meta.guts, select=which(fact_all.g[,1]=="Yorkshire" & fact_all.g[,2]=="Oct"),col="blue",pch=15)
-ordispider(meta.guts,group=fact_all.g[,1], col=c("green", "green4"),label=T)
-ordiellipse(meta.guts,group=fact_all.g[,2],kind="ehull", lty=c(1,3),label=T,lwd=2)
+points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1]=="May"),col="black",pch=1)
+points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=="May"),col="blue",pch=22)
+points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1]=="Oct"),col="black",pch=16)
+points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=="Oct"),col="blue",pch=15)
+ordispider(meta.guts,group=fact_county.g[,1], col=c("green", "green4"),label=T)
+ordiellipse(meta.guts,group=fact_time.g[,1],kind="ehull", lty=c(1,3),label=T,lwd=2)
 text(0.7,-0.5, scores(meta.guts$stress))
 dev.off()
 ```
@@ -1013,8 +1016,6 @@ ratio.comms = as.data.frame(reads.comms)
 PERMANOVA analysis (Number of permutations: 10000, Euclidean distance) on the community data show a strong significant influence of season (R2=0.36640, p-value=9.999e-05) on the investigated communities, rather than counties (R2=0.04647, p-value=0.2817); or both variables together (R2=0.06100, p-value=0.1396). This can be seen also in the NMDS plot with a small overlap between different season (ovals), but a strong overlap between county (webs).
 
 ```{r permanova communities, include=F}
-#ratio.comms[is.na(ratio.comms)] <- 0
-
 info.comms = ratio.comms[,colnames(ratio.comms) %in% c("sample_id","sample_type","pcr","site","time","county")]
 ratio.comms = ratio.comms[,!c(colnames(ratio.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 ratio.comms = ratio.comms/rowSums(ratio.comms)
@@ -1023,7 +1024,7 @@ ratio.comms = ratio.comms/rowSums(ratio.comms)
 ratio.comms = cbind(ratio.comms, info.comms)
 ratio.comms = ratio.comms[,!c(colnames(ratio.comms) %in% c("Harmonia_axyridis","Homo_sapiens"))]
 
-matrix.ratio.com = as.matrix(ratio.comms[,!c(colnames(ratio.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+adonis.ratio.com = ratio.comms[,!c(colnames(ratio.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 ```
 
 
@@ -1031,20 +1032,21 @@ matrix.ratio.com = as.matrix(ratio.comms[,!c(colnames(ratio.comms) %in% c("sampl
 ratio.sp.comms = sp.comms/rowSums(sp.comms)
 ratio.sp.comms = cbind(ratio.sp.comms, info.comms)
 
-matrix.sp.com = as.matrix(ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+adonis.sp.comm = ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 
 fact_county = matrix(c(ratio.sp.comms$county),ncol=1) 
 fact_time = matrix(c(ratio.sp.comms$time), ncol=1)
 fact_all = matrix(c(ratio.sp.comms$county, ratio.sp.comms$time),ncol=2) 
 
-dist.sp.com = vegdist(matrix.sp.com)
-
-adonis(dist.sp.com~fact_county*fact_time, permutations = 10000, method="jaccard")
+adonis(adonis.sp.comm~fact_county*fact_time, permutations = 9999, method="jaccard")
+```
+```{r}
+meta.comms = metaMDS(adonis.sp.comm, trymax=200, distance="jaccard")
 ```
 
 ```{r permanova low rank community plot, include=T, echo=F}
 png("R_images/NMDS_arboreal_community.png", height=4000, width=4000, units="px", res=300)
-plot(meta.comms<-metaMDS(dist.sp.com, k=2, trymax=200, method="jaccard"),type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6))
+plot(meta.comms,type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6))
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
 points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
@@ -1086,20 +1088,23 @@ Similarly to the taxa assigned to species level we ran the analysis also on the 
 ```{r high rank communities, include=F}
 ratio.highrank.comms = highrank.comms/rowSums(highrank.comms)
 ratio.highrank.comms = cbind(ratio.highrank.comms, info.comms)
-matrix.ratio.ranks = as.matrix(ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))])
+adonis.ratio.ranks = ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 
 fact_county = matrix(c(ratio.highrank.comms$county), ncol=1) 
 fact_time = matrix(c(ratio.highrank.comms$time), ncol=1)
 fact_all = matrix(c(ratio.highrank.comms$county, ratio.highrank.comms$time), ncol=2) 
 
-dist.highcomm = vegdist(matrix.ratio.ranks)
-
-adonis(dist.highcomm~fact_county*fact_time, permutations = 10000, method="euclid")
+adonis(adonis.ratio.ranks~fact_county*fact_time, permutations = 9999, method="jaccard")
 ```
+
+```{r}
+meta.highcomms = metaMDS(adonis.ratio.ranks, trymax=200, distance="jaccard")
+```
+
 
 ```{r permanova highranks taxa community plot, include=T, echo=F}
 png("R_images/NMDS_highrank_community.png", height=4000, width=4000, units="px", res=300)
-plot(meta.highcomms<-metaMDS(dist.highcomm, zerodist=ignore), type="n", ylim=c(-0.7,0.4))
+plot(meta.highcomms, type="n", ylim=c(-0.7,0.4))
 points(meta.highcomms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
 points(meta.highcomms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
 points(meta.highcomms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
@@ -1110,7 +1115,7 @@ text(0.4, -0.6, scores(meta.highcomms$stress))
 dev.off()
 ```
 
-```{r rarefaction curves on community, include=T, echo=F}
+```{r rarefaction curves on community}
 ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site","county","time"))][ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site","county","time"))] > 0] <- 1
 abund.comms = as.data.frame(ratio.highrank.comms[,!c(colnames(ratio.highrank.comms) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
 
@@ -1134,37 +1139,40 @@ ggiNEXT(comms_inext) +
   ggtitle("High rank taxa rarefaction curves on community")
 ```
 
-```{r permanova communities on species, include=T}
-colnames(ratio.sp.comms)
-colnames(ratio.guts)
+```{r permanova communities and gut contents}
+ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))][ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
 
-meta.guts.comms = full_join(ratio.guts, ratio.sp.comms)
+ratio.guts.comms = full_join(ratio.guts, ratio.sp.comms)
 
-# to sort out!!!! (values > 0 <- 1)
+ratio.guts.comms[is.na(ratio.guts.comms)] = 0
 
-#meta.guts.comms
+# We remove Dinocampus coccinellae since it's a parasite and not directly part of the diet.
+ratio.guts.comms[ratio.guts.comms$sample_type == "gut","Dinocampus_coccinellae"] = 0
 
-adonis.guts.comms = meta.guts.comms[,!c(colnames(meta.guts.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))]
+adonis.guts.comms = ratio.guts.comms[,!c(colnames(ratio.guts.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 
-fact_county = matrix(c(meta.guts.comms$county),ncol=1) 
-fact_time = matrix(c(meta.guts.comms$time), ncol=1)
-fact_type = matrix(c(meta.guts.comms$sample_type), ncol=1)
+fact_county = matrix(c(ratio.guts.comms$county),ncol=1) 
+fact_time = matrix(c(ratio.guts.comms$time), ncol=1)
+fact_type = matrix(c(ratio.guts.comms$sample_type), ncol=1)
 
-dist.guts.comms = vegdist(adonis.guts.comms)
+adonis(adonis.guts.comms~fact_county*fact_time*fact_type, permutations = 9999, method="euclidean")
+```
 
-adonis(dist.guts.comms~fact_county*fact_time*fact_type, permutations = 10000, method="jaccard")
+```{r}
+meta.guts.comms = metaMDS(adonis.guts.comms, trymax=200, distance="euclidean")
 ```
 
 ```{r permanova low rank community plot, include=T, echo=F}
-png("R_images/NMDS_arboreal_community.png", height=4000, width=4000, units="px", res=300)
-plot(meta.comms<-metaMDS(dist.sp.com, k=2, trymax=200, method="jaccard"),type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6))
-points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
-points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
-points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
-points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="Oct"),col="blue", pch=15)
-ordispider(meta.comms,group=fact_all[,1], col=c("darkorange", "yellow"),label=T)
-ordiellipse(meta.comms,group=fact_all[,2],kind="ehull", lty=c(1,3),label=T, lwd=2)
-text(-0.4,-0.6, scores(meta.comms$stress))
+png("R_images/NMDS_guts_community.png", height=4000, width=4000, units="px", res=300)
+plot(meta.guts.comms,type="n")#,xlim=c(-0.05,0.05), ylim=c(-0.01,0.01))
+points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="May"),col="black", pch=1)
+points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="May"),col="blue", pch=22)
+points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="Oct"),col="black", pch=16)
+points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="Oct"),col="blue", pch=15)
+orditorp(meta.guts.comms, display="species")
+ordispider(meta.guts.comms,group=fact_type[,1], col=c("darkorange", "yellow"),label=F)
+ordiellipse(meta.guts.comms,group=fact_type[,1],kind="ehull", lty=c(1,3),label=T, lwd=2)
+text(-0.4,-0.6, scores(meta.guts.comms$stress))
 dev.off()
 ```
 

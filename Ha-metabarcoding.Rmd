@@ -924,14 +924,14 @@ Tripartite network
 abund.guts$county = gsub("rd{1}|[a-z]{5}$", "", abund.guts$county)
 
 rownames(abund.guts) = paste(abund.guts$county, abund.guts$time)
-abund.guts = abund.guts[,!c(colnames(abund.guts) %in% c("time","county"))]
+network.guts = abund.guts[,!c(colnames(abund.guts) %in% c("time","county"))]
 
-abund.guts = as.data.frame(t(abund.guts))
+network.guts = as.data.frame(t(network.guts))
 
-rownames(abund.guts)[10] <- "Chironomus"
+rownames(network.guts)[10] <- "Chironomus"
 
-web.ha = abund.guts[!c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
-web.dc = abund.guts[c(rownames(abund.guts) %in% "Dinocampus_coccinellae"),]
+web.ha = network.guts[!c(rownames(network.guts) %in% "Dinocampus_coccinellae"),]
+web.dc = network.guts[c(rownames(network.guts) %in% "Dinocampus_coccinellae"),]
 
 web.dc = as.data.frame(t(web.dc))
 web.ha = as.matrix(web.ha)
@@ -947,23 +947,18 @@ We set the order of prey by directly changing the order of rows into the network
 web.ha = web.ha[c("Betulaphis","Callipterinella","Clethrobius_comes","Taeniothrips_inconsequens","Thripidae","Trombidiformes_sp._BOLD:ACI3657","Euceraphis","Ocytata_pallipes","Drepanosiphum_platanoidis","Chrysomelidae","Chironomus","Ectopsocus_californicus","Eucallipterus_tiliae","Psocoptera"),]
 
 rownames(web.ha) = gsub("_|_[A-Z0-9:]{11,13}", " ", rownames(web.ha))
-#rownames(web.ha)
-#gsub("[a-z(?:Trombidiformes)]{5,} ",".", rownames(web.ha))
+rownames(web.ha) = gsub("[a-z]{5,}\\s(?!sp)",".", rownames(web.ha), perl=T)
+colnames(web.dc) = gsub("[a-z]{5,}_", ".", colnames(web.dc))
 ```
 
-#NOTE 2:
-Change order of network to match with parasitoid and Harmonia!!!
+We can now plot the tripartite network.
 
 ```{r tripartite}
-#png("R_images/test_network.png", width=4000, height=4000, res=300)
-plotweb(web.ha, method="normal", labsize=2, y.width.low=0.1, y.width.high=0.08,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lab.dis=0.1, high.spacing=0.08, low.spacing=0.02, adj.high=c(0.5,1.7), y.lim=c(0,3), col.high="white",  col.interaction=c("orange","yellow","blue","red"))
-plotweb(web.dc, method="normal", labsize=2, y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.lab.dis=0, low.spacing=0.058, adj.low=c(0.5,1.1), arrow="down", col.interaction=c("orange","yellow","blue","red"), low.plot=F, add=T, empty=F)
-#legend("bottom", legend=name.multi, fill=col.multi, bty="n", border="black",ncol=4, xpd=T)
-#dev.off()
-```
-```{r}
-plotweb(web.dc, method="normal", labsize=2, y.lim=c(-1,2.7), x.lim=c(0,1.25), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.063, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
-plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.width.high=0.08,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.085, low.spacing=0.02, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), add=T, empty=F)
+png("R_images/tripartite_network.png", width=6000, height=4000, res=300)
+plotweb(web.dc, method="normal", labsize=2, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.063, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
+plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.085, low.spacing=0.02, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), add=T, empty=F)
+legend("bottom", legend=rownames(web.ha), bty="n", border="black",ncol=6, xpd=T)
+dev.off()
 ```
 
 # 8. Community composition.
@@ -1044,12 +1039,12 @@ fact_all = matrix(c(ratio.sp.comms$county, ratio.sp.comms$time),ncol=2)
 
 dist.sp.com = vegdist(matrix.sp.com)
 
-adonis(dist.sp.com~fact_county*fact_time, permutations = 10000, method="euclid")
+adonis(dist.sp.com~fact_county*fact_time, permutations = 10000, method="jaccard")
 ```
 
 ```{r permanova low rank community plot, include=T, echo=F}
 png("R_images/NMDS_arboreal_community.png", height=4000, width=4000, units="px", res=300)
-plot(meta.comms<-metaMDS(dist.sp.com,zerodist=ignore, k=2, trymax=200),type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6))
+plot(meta.comms<-metaMDS(dist.sp.com, k=2, trymax=200, method="jaccard"),type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6))
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
 points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
@@ -1139,6 +1134,75 @@ ggiNEXT(comms_inext) +
   ggtitle("High rank taxa rarefaction curves on community")
 ```
 
+```{r permanova communities on species, include=T}
+colnames(ratio.sp.comms)
+colnames(ratio.guts)
+
+meta.guts.comms = full_join(ratio.guts, ratio.sp.comms)
+
+# to sort out!!!! (values > 0 <- 1)
+
+#meta.guts.comms
+
+adonis.guts.comms = meta.guts.comms[,!c(colnames(meta.guts.comms) %in% c("sample_id","sample_type","pcr","site","time","county"))]
+
+fact_county = matrix(c(meta.guts.comms$county),ncol=1) 
+fact_time = matrix(c(meta.guts.comms$time), ncol=1)
+fact_type = matrix(c(meta.guts.comms$sample_type), ncol=1)
+
+dist.guts.comms = vegdist(adonis.guts.comms)
+
+adonis(dist.guts.comms~fact_county*fact_time*fact_type, permutations = 10000, method="jaccard")
+```
+
+```{r permanova low rank community plot, include=T, echo=F}
+png("R_images/NMDS_arboreal_community.png", height=4000, width=4000, units="px", res=300)
+plot(meta.comms<-metaMDS(dist.sp.com, k=2, trymax=200, method="jaccard"),type="n",ylim=c(-0.7,0.4), xlim=c(-0.6,0.6))
+points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1)
+points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22)
+points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16)
+points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="Oct"),col="blue", pch=15)
+ordispider(meta.comms,group=fact_all[,1], col=c("darkorange", "yellow"),label=T)
+ordiellipse(meta.comms,group=fact_all[,2],kind="ehull", lty=c(1,3),label=T, lwd=2)
+text(-0.4,-0.6, scores(meta.comms$stress))
+dev.off()
+```
+
+
+# 9. Generating data summary table
+
+This last chunk is only to create the base for the summary table presented in supplementary informaton. This uses the presence/absence data for the gut contents and the DNA bulk samples. The table was then expanded externally to R to include more summarising informations.
+
+```{r generating data summary table}
+colnames(niche.ratio)
+guts.summary = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
+
+colnames(ratio.sp.comms)
+comms.summary = as.data.frame(ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
+
+full.data = full_join(guts.summary, comms.summary)
+
+# Splitting the metadata from data, so that we can remove the NAs into the data set.
+full.info = full.data[,c(colnames(full.data) %in% c("sample_type","time","county","site","pcr"))]
+full.data = full.data[,!c(colnames(full.data) %in% c("sample_type","time","county","site","pcr"))]
+full.data[is.na(full.data)] <- 0
+
+# Binding the frame together using specific order of the metadata
+final.data = bind_cols(full.info[,c(1,2,3,4)], full.data)
+
+# Transposing and saving the data frame, we will rearrange the order of the metadata later
+final.data = t(final.data)
+
+#Saving final output
+write.csv(final.data, "R_outputs/Data_summary_table.csv")
+```
+
+# 10. Publication plot
+
+```{r}
+
+```
+
 
 ```{r log session info}
 sink("log_session_analysis.txt")
@@ -1157,105 +1221,4 @@ sink()
 
 ```{r end}
 print("end")
-```
-
-# Supplementary material
-## Plots to visualise the pre- and post-filter results.
-
-Survivability of the reads after filter threshold in the first data frame.
-
-```{r survival plot frame1, include=T, echo=F}
-ha = full_join(ha.pre, ha.post)
-ha[is.na(ha)] <- 0
-
-dim(ha)
-
-ha.melt = subset(ha, select = colSums(ha[,1:10]) > 0)
-
-d = grep("POS|NEG", ha.melt$sample_id, ignore.case = T)
-ha.melt = ha.melt[-d,]
-
-ha.melt = melt(ha.melt)
-
-#ha.melt = subset(ha.melt, ha.melt$value > 0)
-
-color10=c("#E69F00", "#56B4E9", "#CC79A7", "#009E73", "#F0E442", "#999999", "#0072B2", "#D55E00", "#000000","#8B2323")
-
-ggplot(ha.melt, aes(sample_id, value)) +
-  facet_grid(.~type) +
-  coord_flip() +
-  scale_fill_manual(values = color10, name = "") +
-  geom_bar(stat="identity", aes(fill=variable)) + 
-  labs(title="Harmonia gut contents Yorkshire (May 2017)", subtitle="Pre- vs. Post-filter of reads (test without blocking primers)") +
-  theme(axis.text.x=element_text(angle=90,hjust=0.3,vjust=0.3))
-```
-
-Pre- and post-filter results of second data frame.
-
-```{r survival plot frame2, include=T, echo=F}
-ha18.1 = full_join(ha18.1.pre, ha18.1.post)
-ha18.1[is.na(ha18.1)] <- 0
-
-dim(ha18.1)
-ha18.1.melt = subset(ha18.1, select=colSums(ha18.1[,!c(colnames(ha18.1)%in%c("type","sample_id","sample_type","pcr"))]) > 0)
-dim(ha18.1.melt)
-
-g = grep("POS|NEG", ha18.1.melt$sample_id)
-ha18.1.melt = ha18.1.melt[-g,]
-
-ha18.1.melt = melt(ha18.1.melt)
-
-ha18.1.melt = subset(ha18.1.melt, ha18.1.melt$value > 0)
-
-color19=c("#E69F00", "#56B4E9", "#CC79A7", "#009E73", "#F0E442", "#999999", "#0072B2", "#D55E00",  "#000000","#993300","#003333","#333300","#33FF33","#6633CC","#CC3300","#FF00CC","#CCFFCC", "#6633CC","#68228B")
-
-ggplot(ha18.1.melt, aes(sample_id, value)) +
-  facet_grid(.~type) +
-  coord_flip() +
-  scale_fill_manual(values = color19, name = "") +
-  geom_bar(stat="identity", aes(fill=variable)) + 
-  labs(title="Harmonia gut contents Oxfordshire (May 2017)", subtitle="Pre- vs. Post-filter of reads") +
-  theme(axis.text.x=element_text(angle=90,hjust=0.3,vjust=0.3))
-```
-
-```{r survival plot frame3}
-ha18.2 = full_join(ha18.2.pre, ha18.2.post)
-ha18.2[is.na(ha18.2)] <- 0
-
-dim(ha18.2)
-
-ha18.2 = subset(ha18.2, select=colSums(ha18.2[,1:143]) > 0)
-
-dim(ha18.2)
-gx = grep("POS|NEG", ha18.2$sample_id)
-ha18.2 = ha18.2[-gx,]
-```
-
-Before plotting, we need to divide the gut contents from the community samples
-
-```{r splitting guts and communities, include=F}
-guts18.2 = ha18.2[ha18.2$sample_type == "guts",]
-comms18.2 = ha18.2[ha18.2$sample_type == "community",]
-
-## Removing emtpy samples and empty species
-
-guts18.2 = subset(guts18.2, select = colSums(guts18.2[,1:143]) > 0)
-comms18.2 = subset(comms18.2, select = colSums(comms18.2[,1:143]) > 0)
-
-## Adding back the sample informations
-
-guts18.2$sample_id = ha18.2[ha18.2$sample_type == "guts","sample_id"]
-guts18.2$sample_type = ha18.2[ha18.2$sample_type == "guts","sample_type"]
-guts18.2$type = ha18.2[ha18.2$sample_type == "guts","type"]
-
-comms18.2$pcr = ha18.2[ha18.2$sample_type == "community","pcr"]
-
-pn = grep("POS|NEG", rownames(ha.clean))
-ha.clean = ha.clean[-pn,]
-pn = grep("POS|NEG", rownames(ha2.clean))
-ha2.clean = ha2.clean[-pn,]
-```
-
-```{r end}
-print("end supp. materials")
 ```

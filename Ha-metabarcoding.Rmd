@@ -1206,7 +1206,32 @@ write.csv(final.data, "R_outputs/Data_summary_table.csv")
 
 # 10. Publication plot
 
-```{r permanova low rank community plot, include=T, echo=F}
+```{r publication blocking primers plot}
+full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
+box_a = ggplot(full_blk_melt,(aes(specie_type, value))) +
+  geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
+  geom_jitter(alpha=0.5, size=4) +
+  labs(x="", y="Normalised DNA reads") +
+  theme_bw() +
+  facet_grid(.~pcr) +
+  theme(legend.position="NA", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0.25,0,0.25), unit="cm"))
+
+full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
+box_b = ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
+  geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
+  geom_jitter(alpha=0.5, size=4) +
+  labs(x="", y="Log10(Normalised DNA reads)") +
+  theme_bw() +
+  facet_grid(.~pcr) +
+  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0,0,0.25), unit="cm"))
+
+png("R_images/publication_blk_vs_no-blk.png", height=4000, width=4000, units="px", res=300)
+plot_grid(box_a, box_b, labels=c("a)","b)"), ncol=2, nrow=1)
+dev.off()
+```
+
+
+```{r publication NMDS multiplot}
 png("R_images/publication_NMDS_plots.png", height=4000, width=4000, units="px", res=300)
 lay.matrix = matrix(c(1,1,2,2,1,1,2,2,3,3,4,0,3,3,3,0), nrow=4, ncol=4, byrow=T)
 layout(lay.matrix)
@@ -1218,7 +1243,7 @@ points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1
 points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=="Oct"),col="blue",pch=15, cex=2)
 ordispider(meta.guts,group=fact_county.g[,1],col=c("green", "green4"),label=T, cex=1.5)
 ordiellipse(meta.guts,group=fact_time.g[,1],kind="ehull", lty=c(1,3),label=F,lwd=1)
-text(-1,0.5,label="May", cex=2.5)
+text(-1,1,label="May", cex=2.5)
 text(1.4,0,label="Oct", cex=2.5)
 text(1.2,-0.9, label=paste0("Stress: ", round(meta.guts$stress, 4)), cex=1.5)
 text(-1,1.45, label="a)", cex=3)
@@ -1249,8 +1274,8 @@ text(-2.6,2.9, label="c)", cex=3)
 text(0,2.6,label="community", cex=2.5)
 text(0,-0.4,label="guts (inset)", cex=2.5)
 
-plot(meta.guts.comms,type="n", xlim=c(-0.25,0.1), ylim=c(-0.25,0.1), xlab="", ylab="", cex.axis=2)
-ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=T, cex=1.5)
+plot(meta.guts.comms,type="n", xlim=c(-0.2,0.1), ylim=c(-0.25,0.15), xlab="", ylab="", cex.axis=2)
+ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=F, cex=1.5)
 ordiellipse(meta.guts.comms,group=fact_type[,1],kind="ehull",lty=c(1,3),label=F, lwd=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="May"),col="black", pch=1, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="May"),col="blue", pch=22, cex=2)

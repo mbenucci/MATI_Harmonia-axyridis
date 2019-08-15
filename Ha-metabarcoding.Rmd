@@ -375,14 +375,14 @@ ha18.1.pre.filter[is.na(ha18.1.pre.filter)] <- 0
 max(ha18.1.pre.filter$Homo_sapiens)
 ```
 
-We calculated the threshold equal to approx. `3.8e-05`; however the max values from known contamination taxa across samples outside of the positive appear higher. In particular we detect contamination of: _Homo sapiens_ = 0.002804504. We decided to apply the calculated threshold the same, despite we are going to retain Human contamination.
+We calculated the threshold equal to approx. `3.8e-05`; however the max values from known contamination taxa across samples outside of the positive appear higher. In particular we detect contamination of: _Homo sapiens_ = 0.002804504. We decided to apply 0.003 threshold.
 
 ```{r filter second frame}
 ha18.1.post.filter = as.data.frame(ha18.1.pre.filter)
-ha18.1.post.filter[,][ha18.1.post.filter[,] <= thres18.1] <- 0
+ha18.1.post.filter[,][ha18.1.post.filter[,] <= 0.003] <- 0
 
 ha1.clean = as.data.frame(t(ha1.clean))
-ha1.clean[][ha1.clean[,]/rowSums(ha1.clean) <= thres18.1] <- 0
+ha1.clean[][ha1.clean[,]/rowSums(ha1.clean) <= 0.003] <- 0
 
 ## Write output to csv
 
@@ -432,6 +432,8 @@ ha18.2.pre.filter = as.data.frame(t(ha2.clean))
 ha18.2.pre.filter = ha18.2.pre.filter/rowSums(ha18.2.pre.filter)
 ha18.2.pre.filter[is.na(ha18.2.pre.filter)] <- 0
 
+thres18.2 =  0.0006
+
 max(ha18.2.pre.filter$Dikerogammarus_villosus)
 max(ha18.2.pre.filter$Homo_sapiens)
 ```
@@ -440,10 +442,10 @@ We didn't detect any other contamination in the positive samples outside of _H. 
 
 ```{r filter third frame}
 ha18.2.post.filter = as.data.frame(ha18.2.pre.filter)
-ha18.2.post.filter[][ha18.2.post.filter <= 0.0006] <- 0
+ha18.2.post.filter[][ha18.2.post.filter <= thres18.2] <- 0
 
 ha2.clean = as.data.frame(t(ha2.clean))
-ha2.clean[][ha2.clean[,]/rowSums(ha2.clean) <= 0.0006] <- 0
+ha2.clean[][ha2.clean[,]/rowSums(ha2.clean) <= thres18.2] <- 0
 
 ## Write output to csv
 write.csv(ha2.clean, "R_outputs/HaAug18_2_cleaned_reads.csv")
@@ -729,7 +731,6 @@ num.taxa$Dinocampus_coccinellae = rowSums(num.taxa[,c(colnames(num.taxa) %in% c(
 full.guts = full.guts[,!c(colnames(full.guts) %in% c("Psocoptera","Hemiptera","Dinocampus"))]
 num.taxa = num.taxa[,!c(colnames(num.taxa) %in% c("Psocoptera","Hemiptera","Dinocampus"))]
 
-
 full.guts = melt(full.guts)
 num.taxa = melt(num.taxa)
 ```
@@ -828,14 +829,14 @@ ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("Harmonia_axyridis","Hom
 ratio.guts = cbind(ratio.guts, info.guts)
 rownames(ratio.guts) = ratio.guts$sample_id
 
-ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,1:15]) > 0)
+ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,1:11]) > 0) #15
 
 matrix.ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 matrix.ratio.guts$Dinocampus_coccinellae = 0
 
 matrix.ratio.guts[,][matrix.ratio.guts[] > 0] = 1
 
-fact_county.g = matrix(c(ratio.guts$county),ncol=1) 
+fact_county.g = matrix(c(ratio.guts$county), ncol=1) 
 fact_time.g = matrix(c(ratio.guts$time), ncol=1)
 fact_all.g = matrix(c(ratio.guts$county, ratio.guts$time), ncol=2)
 
@@ -947,7 +948,8 @@ rownames(web.dc)
 We set the order of prey by directly changing the order of rows into the network becuase the top level contains only one column, the parasite _Dinocampus coccinellae_ and changing the order using `sortweb(food.web, sort.order="seq", sequence=list(seq.higher=seq.high, seq.lower=seq.low)` is going to give errors in the top trophic level.
 
 ```{r order}
-web.ha = web.ha[c("Betulaphis","Callipterinella","Clethrobius_comes","Taeniothrips_inconsequens","Thripidae","Trombidiformes_sp._BOLD:ACI3657","Euceraphis","Ocytata_pallipes","Drepanosiphum_platanoidis","Chrysomelidae","Chironomus","Ectopsocus_californicus","Eucallipterus_tiliae","Psocoptera"),]
+#"Betulaphis","Clethrobius_comes","Taeniothrips_inconsequens","Thripidae","Eucallipterus_tiliae",
+web.ha = web.ha[c("Callipterinella","Trombidiformes_sp._BOLD:ACI3657","Euceraphis","Ocytata_pallipes","Drepanosiphum_platanoidis","Chrysomelidae","Chironomus","Ectopsocus_californicus","Psocoptera"),]
 
 rownames(web.ha) = gsub("_|_[A-Z0-9:]{11,13}", " ", rownames(web.ha))
 rownames(web.ha) = gsub("[a-z]{5,}\\s(?!sp)",".", rownames(web.ha), perl=T)
@@ -1233,7 +1235,7 @@ dev.off()
 
 ```{r publication NMDS multiplot}
 png("R_images/publication_NMDS_plots.png", height=4000, width=4000, units="px", res=300)
-lay.matrix = matrix(c(1,1,2,2,1,1,2,2,3,3,4,0,3,3,3,0), nrow=4, ncol=4, byrow=T)
+lay.matrix = matrix(c(1,1,2,2,1,1,2,2,3,3,4,5,3,3,3,0), nrow=4, ncol=4, byrow=T)
 layout(lay.matrix)
 
 plot(meta.guts,type="n", xlim=c(-1,1.5), ylim=c(-1,1.5), cex.axis=2, cex.lab=1.5)
@@ -1242,7 +1244,7 @@ points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=
 points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1]=="Oct"),col="black",pch=16, cex=2)
 points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=="Oct"),col="blue",pch=15, cex=2)
 ordispider(meta.guts,group=fact_county.g[,1],col=c("green", "green4"),label=T, cex=1.5)
-ordiellipse(meta.guts,group=fact_time.g[,1],kind="ehull", lty=c(1,3),label=F,lwd=1)
+ordiellipse(meta.guts,group=fact_time.g[,1],kind="ehull", lty=c(1,3),label=T,lwd=1)
 text(-1,1,label="May", cex=2.5)
 text(1.4,0,label="Oct", cex=2.5)
 text(1.2,-0.9, label=paste0("Stress: ", round(meta.guts$stress, 4)), cex=1.5)
@@ -1281,6 +1283,68 @@ points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="May"),col="blue", pch=22, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="Oct"),col="black", pch=16, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="Oct"),col="blue", pch=15, cex=2)
+
+# Common legend
+plot.new()
+legend("bottom", legend=c("Oxfordshire - May","Oxfordshire - Oct","Yorkshire - May","Yorkshire - Oct"), col=c("black","black","blue","blue"), pch=c(1,16,22,15), cex=2, ncol=1)
+dev.off()
+```
+
+```{r publication tripartite plot}
+name.multi=c("Aphididae","Thripidae","Acari","Tachinidae","Chironomidae","Chrysomelidae","Ectopsocidae","Psocoptera")
+col.multi=c("cyan3","grey50","orchid","purple","tan4","black","darkolivegreen4","khaki")
+
+col.prey=c("cyan3","cyan3","cyan3","grey50","grey50","orchid","cyan3","purple","cyan3","black","tan4","darkolivegreen4","cyan3","khaki")
+
+# no c("orange","yellow","blue","red")
+
+png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
+plotweb(web.dc, method="normal", labsize=2, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.063, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
+plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.085, low.spacing=0.02, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
+legend("bottom", legend=name.multi, fill=col.multi, bty="n", border="black",ncol=6, xpd=T, cex=1.5)
+dev.off()
+```
+
+```{r publication barplot simplified}
+#unique(melt.comms$variable)
+melt.comms$order = "NA"
+melt.comms[grep("Acanthosoma|Anthocoris|Coreus|Deraeocoris|Elasmucha|Neolygus|Palomena|Pentatoma|Psallus", melt.comms$variable),"order"] = "Hemiptera - Heteroptera"
+melt.comms[grep("Agathomyia|Chironomus|Lonchoptera|Schwenckfeldina", melt.comms$variable), "order"] = "Diptera"
+melt.comms[grep("Agriopis|Amphipyra|Bucculatrix|Cameraria|Orthosia|Pandemis|Tiliacea", melt.comms$variable), "order"] = "Lepidoptera"
+melt.comms[grep("Anelosimus|Clubiona|Hylyphantes|Metellina|Oligolophus|Paidiscura|Paroligolophus|Philodromus|Tenuiphantes|Tetragnatha|Theridion", melt.comms$variable), "order"] = "Arachnida"
+melt.comms[grep("Aphthona|Cantharis|Enicmus|Phyllopertha|Polydrusus|Rhagonycha|Rhyzobius", melt.comms$variable), "order"] = "Coleoptera"
+melt.comms[grep("Cacopsylla|Callipterinella|Drepanosiphum|Eucallipterus|Euceraphis|Macrosiphum|Psyllopsis|Rhopalosiphum", melt.comms$variable), "order"] = "Hemiptera - Aphidomorpha"
+melt.comms[grep("Cepaea", melt.comms$variable), "order"] = "Gastropoda"
+melt.comms[grep("Chrysoperla|Hemerobius", melt.comms$variable), "order"] = "Neuroptera"
+melt.comms[grep("Entomobrya|Sminthurus", melt.comms$variable), "order"] = "Collembola"
+melt.comms[grep("Glyphotaelius", melt.comms$variable), "order"] = "Trichoptera"
+melt.comms[grep("Lasius|Pristiphora|Trioxys", melt.comms$variable), "order"] = "Hymenoptera"
+melt.comms[grep("Panorpa", melt.comms$variable), "order"] = "Mecoptera"
+melt.comms[grep("Tachypodoiulus", melt.comms$variable), "order"] = "Myriapoda"
+melt.comms[grep("Ectopsocus|Graphopsocus|Valenzuela", melt.comms$variable), "order"] = "Psocoptera"
+
+
+View(melt.guts)
+```
+
+```{r publication barplot}
+pa = ggplot(melt.comms, aes(time, value)) +
+  geom_bar(stat="identity", position="fill", aes(fill=order)) +
+  facet_grid(.~county, scales="free") +
+  theme(legend.position = "right", axis.text = element_text(size = 15), 
+        strip.text = element_text(size=15), axis.title = element_text(size =15),
+        legend.text = element_text(size=15))
+
+pb = ggplot(melt.guts, aes(time, value)) +
+  geom_bar(stat="identity", position="fill", aes(fill=variable)) +
+  scale_fill_manual(values = color16, name = "") +
+  facet_grid(.~county, scales="free") + 
+  theme(legend.position = "right", axis.text = element_text(size = 15), 
+        strip.text = element_text(size=15), axis.title = element_text(size =15),
+        legend.text = element_text(size=15))
+
+png("R_images/publication_barplot_composition.png", height=4000, width=4000, units="px", res=300)
+plot_grid(pa, pb)
 dev.off()
 ```
 

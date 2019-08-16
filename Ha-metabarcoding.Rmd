@@ -585,13 +585,13 @@ plot_frame = full_join(plot_blk, plot_no_blk)
 
 # We set the undetected taxa in either frame equal to "NA".
 
-plot_frame["9",] = plot_frame[plot_frame$specie == "Pyrrhalta_viburni",]
-plot_frame["9","pcr"] = "blocking primers"
-plot_frame["9",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
+#plot_frame["9",] = plot_frame[plot_frame$specie == "Pyrrhalta_viburni",]
+#plot_frame["9","pcr"] = "blocking primers"
+#plot_frame["9",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
 
-plot_frame["10",] = plot_frame[plot_frame$specie == "Drepanosiphum_platanoidis",]
-plot_frame["10","pcr"] = "no-blocking primers"
-plot_frame["10",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
+#plot_frame["10",] = plot_frame[plot_frame$specie == "Drepanosiphum_platanoidis",]
+#plot_frame["10","pcr"] = "no-blocking primers"
+#plot_frame["10",!c(colnames(plot_frame) %in% c("pcr","specie","specie_type"))] <- NA
 
 full_blk_melt = melt(plot_frame)
 ```
@@ -603,8 +603,9 @@ box_a = ggplot(full_blk_melt,(aes(specie_type, value))) +
   geom_jitter(alpha=0.5, size=4) +
   labs(x="", y="Normalised DNA reads") +
   theme_bw() +
-  facet_grid(.~pcr) +
-  theme(legend.position="NA", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0.25,0,0.25), unit="cm"))
+  facet_grid(.~specie_type) +
+  theme(legend.position="NA", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0.25,0,0.25), unit="cm")) +
+  geom_signif(na.rm=T, comparisons=list(c("prey","predator")), test="chisq.test")
 
 full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
 box_b = ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
@@ -1211,7 +1212,7 @@ write.csv(final.data, "R_outputs/Data_summary_table.csv")
 
 ```{r publication blocking primers plot}
 full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
-box_a = ggplot(full_blk_melt,(aes(specie_type, value))) +
+blk_a = ggplot(full_blk_melt,(aes(specie_type, value))) +
   geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
   geom_jitter(alpha=0.5, size=4) +
   labs(x="", y="Normalised DNA reads") +
@@ -1220,7 +1221,7 @@ box_a = ggplot(full_blk_melt,(aes(specie_type, value))) +
   theme(legend.position="NA", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0.25,0,0.25), unit="cm"))
 
 full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
-box_b = ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
+blk_b = ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
   geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
   geom_jitter(alpha=0.5, size=4) +
   labs(x="", y="Log10(Normalised DNA reads)") +
@@ -1228,8 +1229,8 @@ box_b = ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
   facet_grid(.~pcr) +
   theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0,0,0.25), unit="cm"))
 
-png("R_images/publication_blk_vs_no-blk.png", height=4000, width=4000, units="px", res=300)
-plot_grid(box_a, box_b, labels=c("a)","b)"), ncol=2, nrow=1)
+png("R_images/publication_blocking-primers.png", height=4000, width=4000, units="px", res=300)
+plot_grid(blk_a, blk_b, labels=c("a)","b)"), ncol=2, nrow=1)
 dev.off()
 ```
 
@@ -1292,17 +1293,14 @@ dev.off()
 ```
 
 ```{r publication tripartite plot}
-name.multi=c("Aphididae","Acari","Tachinidae","Chironomidae","Chrysomelidae","Ectopsocidae","Psocoptera")
-col.multi=c("cyan3","orchid","purple","tan4","black","darkolivegreen4","khaki")
-
+name.legend=c("Aphididae","Acari","Tachinidae","Chironomidae","Chrysomelidae","Ectopsocidae","Psocoptera")
+col.legend=c("cyan3","orchid","purple","tan4","black","darkolivegreen4","khaki")
 col.prey=c("cyan3","orchid","cyan3","purple","cyan3","black","tan4","darkolivegreen4","khaki")
-
-# no c("orange","yellow","blue","red")
 
 png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
 plotweb(web.dc, method="normal", labsize=2, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.077, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
 plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.077, low.spacing=0.03, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
-legend("bottom", legend=name.multi, fill=col.multi, bty="n", border="black",ncol=6, xpd=T, cex=1.5)
+legend("bottom", legend=name.legend, fill=col.legend, bty="n", border="black",ncol=6, xpd=T, cex=1.5)
 dev.off()
 ```
 

@@ -365,24 +365,25 @@ lr.pos18.1 = sum(ha1.pos[c("Lumbricus_rubellus","Lumbricidae","Harmonia_axyridis
 cont18.1 = tot.pos18.1-lr.pos18.1
 cont18.1
 
-thres18.1 = cont18.1/sum(ha1.pos)
-thres18.1
+#thres18.1 = cont18.1/sum(ha1.pos)
 
 ha18.1.pre.filter = as.data.frame(t(ha1.clean))
 ha18.1.pre.filter = ha18.1.pre.filter/rowSums(ha18.1.pre.filter)
 ha18.1.pre.filter[is.na(ha18.1.pre.filter)] <- 0
 
 max(ha18.1.pre.filter$Homo_sapiens)
+
+thres18.1 = 0.003
 ```
 
 We calculated the threshold equal to approx. `3.8e-05`; however the max values from known contamination taxa across samples outside of the positive appear higher. In particular we detect contamination of: _Homo sapiens_ = 0.002804504. We decided to apply 0.003 threshold.
 
 ```{r filter second frame}
 ha18.1.post.filter = as.data.frame(ha18.1.pre.filter)
-ha18.1.post.filter[,][ha18.1.post.filter[,] <= 0.003] <- 0
+ha18.1.post.filter[,][ha18.1.post.filter[,] <= thres18.1] <- 0
 
 ha1.clean = as.data.frame(t(ha1.clean))
-ha1.clean[][ha1.clean[,]/rowSums(ha1.clean) <= 0.003] <- 0
+ha1.clean[][ha1.clean[,]/rowSums(ha1.clean) <= thres18.1] <- 0
 
 ## Write output to csv
 
@@ -432,7 +433,7 @@ ha18.2.pre.filter = as.data.frame(t(ha2.clean))
 ha18.2.pre.filter = ha18.2.pre.filter/rowSums(ha18.2.pre.filter)
 ha18.2.pre.filter[is.na(ha18.2.pre.filter)] <- 0
 
-thres18.2 =  0.0006
+thres18.2 =  0.001
 
 max(ha18.2.pre.filter$Dikerogammarus_villosus)
 max(ha18.2.pre.filter$Homo_sapiens)
@@ -1238,45 +1239,45 @@ png("R_images/publication_NMDS_plots.png", height=4000, width=4000, units="px", 
 lay.matrix = matrix(c(1,1,2,2,1,1,2,2,3,3,4,5,3,3,3,0), nrow=4, ncol=4, byrow=T)
 layout(lay.matrix)
 
-plot(meta.guts,type="n", xlim=c(-1,1.5), ylim=c(-1,1.5), cex.axis=2, cex.lab=1.5)
+plot(meta.guts,type="n", xlim=c(-1,1), ylim=c(-1,1), cex.axis=2, cex.lab=1.5)
 points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1]=="May"),col="black",pch=1, cex=2)
 points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=="May"),col="blue",pch=22, cex=2)
 points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1]=="Oct"),col="black",pch=16, cex=2)
 points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=="Oct"),col="blue",pch=15, cex=2)
 ordispider(meta.guts,group=fact_county.g[,1],col=c("green", "green4"),label=T, cex=1.5)
-ordiellipse(meta.guts,group=fact_time.g[,1],kind="ehull", lty=c(1,3),label=T,lwd=1)
-text(-1,1,label="May", cex=2.5)
-text(1.4,0,label="Oct", cex=2.5)
-text(1.2,-0.9, label=paste0("Stress: ", round(meta.guts$stress, 4)), cex=1.5)
-text(-1,1.45, label="a)", cex=3)
-text(1,1.4,label="gut contents", cex=2.5)
+ordiellipse(meta.guts,group=fact_time.g[,1],kind="ehull", lty=c(1,3),label=F,lwd=1)
+text(-0.8,-0.5,label="May", cex=2.5)
+text(0.9,0.5,label="Oct", cex=2.5)
+text(0.7,-0.9, label=paste0("Stress: ", round(meta.guts$stress, 4)), cex=1.5)
+text(-1,0.95, label="a)", cex=3)
+text(0.5,0.9,label="gut contents", cex=2.5)
 
-plot(meta.comms,type="n", xlim=c(-1.5,1.5), ylim=c(-1.8,1.2), cex.axis=2, cex.lab=1.5)
+plot(meta.comms,type="n", xlim=c(-3,3), ylim=c(-4,2.5), cex.axis=2, cex.lab=1.5)
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1, cex=2)
 points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="May"),col="blue", pch=22, cex=2)
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="Oct"),col="black", pch=16, cex=2)
 points(meta.comms, select=which(fact_all[,1]=="Yorkshire" & fact_all[,2]=="Oct"),col="blue", pch=15, cex=2)
 ordispider(meta.comms,group=fact_all[,1],col=c("darkorange", "yellow"),label=T, cex=1.5)
 ordiellipse(meta.comms,group=fact_all[,2],kind="ehull", lty=c(1,3),label=F, lwd=1)
-text(-1.5,0,label="May", cex=2.5)
-text(1.4,0.8,label="Oct", cex=2.5)
-text(1.2,-1.72, label=paste0("Stress: ", round(meta.comms$stress, 4)), cex=1.5)
-text(-1.5,1.15, label="b)", cex=3)
-text(0,1.1,label="community", cex=2.5)
+text(-3,-0.5,label="May", cex=2.5)
+text(3,1.5,label="Oct", cex=2.5)
+text(2.5,-3.7, label=paste0("Stress: ", round(meta.comms$stress, 4)), cex=1.5)
+text(-3,2.3, label="b)", cex=3)
+text(0,2.3,label="community", cex=2.5)
 
-plot(meta.guts.comms,type="n", xlim=c(-2,5), ylim=c(-2,3), cex.axis=2, cex.lab=1.5)
+plot(meta.guts.comms,type="n", xlim=c(-2,5), ylim=c(-2.5,2), cex.axis=2, cex.lab=1.5)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="May"),col="black", pch=1, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="May"),col="blue", pch=22, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="Oct"),col="black", pch=16, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="Oct"),col="blue", pch=15, cex=2)
 ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=F, cex=1.5)
 ordiellipse(meta.guts.comms,group=fact_type[,1],kind="ehull", lty=c(1,3), label=F, lwd=2)
-text(3,-1.9, label=paste0("Stress: ", round(meta.guts.comms$stress, 4)), cex=1.5)
-text(-2.6,2.9, label="c)", cex=3)
-text(0,2.6,label="community", cex=2.5)
+text(3,-2.2, label=paste0("Stress: ", round(meta.guts.comms$stress, 4)), cex=1.5)
+text(-2.2,1.8, label="c)", cex=3)
+text(0,1.8,label="community", cex=2.5)
 text(0,-0.4,label="guts (inset)", cex=2.5)
 
-plot(meta.guts.comms,type="n", xlim=c(-0.2,0.1), ylim=c(-0.25,0.15), xlab="", ylab="", cex.axis=2)
+plot(meta.guts.comms,type="n", xlim=c(-0.2,0.1), ylim=c(-0.2,0.3), xlab="", ylab="", cex.axis=2)
 ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=F, cex=1.5)
 ordiellipse(meta.guts.comms,group=fact_type[,1],kind="ehull",lty=c(1,3),label=F, lwd=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="May"),col="black", pch=1, cex=2)
@@ -1291,16 +1292,16 @@ dev.off()
 ```
 
 ```{r publication tripartite plot}
-name.multi=c("Aphididae","Thripidae","Acari","Tachinidae","Chironomidae","Chrysomelidae","Ectopsocidae","Psocoptera")
-col.multi=c("cyan3","grey50","orchid","purple","tan4","black","darkolivegreen4","khaki")
+name.multi=c("Aphididae","Acari","Tachinidae","Chironomidae","Chrysomelidae","Ectopsocidae","Psocoptera")
+col.multi=c("cyan3","orchid","purple","tan4","black","darkolivegreen4","khaki")
 
-col.prey=c("cyan3","cyan3","cyan3","grey50","grey50","orchid","cyan3","purple","cyan3","black","tan4","darkolivegreen4","cyan3","khaki")
+col.prey=c("cyan3","orchid","cyan3","purple","cyan3","black","tan4","darkolivegreen4","khaki")
 
 # no c("orange","yellow","blue","red")
 
 png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
-plotweb(web.dc, method="normal", labsize=2, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.063, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
-plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.085, low.spacing=0.02, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
+plotweb(web.dc, method="normal", labsize=2, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.077, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
+plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.077, low.spacing=0.03, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
 legend("bottom", legend=name.multi, fill=col.multi, bty="n", border="black",ncol=6, xpd=T, cex=1.5)
 dev.off()
 ```
@@ -1324,6 +1325,7 @@ melt.comms[grep("Tachypodoiulus", melt.comms$variable), "order"] = "Myriapoda"
 melt.comms[grep("Ectopsocus|Graphopsocus|Valenzuela", melt.comms$variable), "order"] = "Psocoptera"
 
 
+unique(melt.guts$variable)
 View(melt.guts)
 ```
 

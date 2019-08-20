@@ -1234,30 +1234,38 @@ plot_grid(blk_a, blk_b, labels=c("a)","b)"), ncol=2, nrow=1, label_size=25, labe
 dev.off()
 ```
 
-# NOTE:
-to change species names to remove the underscore!
+```{r species names}
+full_blk_melt$specie = gsub("[a-z]{7,}_", ".", full_blk_melt$specie)
+full_blk_melt$pcr = as.character(full_blk_melt$pcr)
+
+full_blk_melt[(full_blk_melt$pcr == "no-blocking primers"), "pcr"] = "no-blk"
+full_blk_melt[(full_blk_melt$pcr == "blocking primers"),"pcr"] = "blk"
+```
 
 ```{r publication blocking primers by samples}
-heat_a<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Drepanosiphum_platanoidis","Pyrrhalta_viburni"),],(aes(pcr, variable))) +
+heat_a<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("D.platanoidis","P.viburni"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
   scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="transparent", limits=c(1,70), name="Normalised\nDNA reads\n") +
+  scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
-  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
+  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
 
-heat_b<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Chrysomelidae","Euceraphis_betulae"),],(aes(pcr, variable))) +
+heat_b<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Chrysomelidae","E.betulae"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
   scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=2000, na.value="transparent", limits=c(1,4000), name="Normalised\nDNA reads\n") + 
+  scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
-  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
+  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text.y = element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
 
 heat_c<-ggplot(full_blk_melt[full_blk_melt$specie_type %in% "predator",],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=35000, na.value="transparent", limits=c(1,70000), name="Normalised DNA reads") +
+  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=35000, na.value="transparent", limits=c(1,70000), name="Normalised\nDNA reads\n") +
+  scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
-  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
+  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text.y = element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
 
 png("R_images/publication_heatmap_block-primers.png", height=3000, width=6000, units="px", res=300)
 grid.arrange(heat_a, heat_b, heat_c, ncol=3, nrow=1, left="Sample ID")

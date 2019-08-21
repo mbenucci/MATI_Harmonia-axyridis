@@ -485,7 +485,7 @@ ha18.2.post$pcr = "with blocking"
 ```
 
 # 4. Blocking primers
-We test here the effects of using blocking primers in gut contents analysis of _Harmonia axyridis_ in the UK. In our case we developed Harmonia-specific blocking primers with a 3C-3' end tail. These were added during the first PCR of both the sequencing runs done in August 2018. No blocking primer was added in the sequencing run from August 2017. In total we have same N=50 samples from May 2017 collected in Lawns and Thwaite Gardens that were sequenced twice in two separate runs, one without and one with blocking primers. First we extract the samples from their respective data frames, then we investigate the difference across these 50 samples that were sequenced with and without blocking primers (Ntot = 100).
+We test here the effects of using blocking primers in gut contents analysis of _Harmonia axyridis_ in the UK. In our case we developed Harmonia-specific blocking primers with a 3'-3C tail. These were added during the first PCR of both the sequencing runs done in August 2018. No blocking primer was added in the sequencing run from August 2017. In total we have same N=50 samples from May 2017 collected in Lawns and Thwaite Gardens that were sequenced twice in two separate runs, one without and one with blocking primers. First we extract the samples from their respective data frames, then we investigate the difference across these 50 samples that were sequenced with and without blocking primers (Ntot = 100).
 
 ```{r boxplot blk primers, include=TRUE, echo=FALSE}
 no.blk.reads = as.data.frame(ha.clean)
@@ -922,6 +922,31 @@ niche.width(niche.breadth, method="shannon")
 niche.overlap(niche.breadth, method="pianka")
 ```
 
+```{r niche overlap by season}
+niche.breadth = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr","site","county"))] %>% group_by(time) %>% summarise_all(list(sum)))
+
+# We remove Dinocampus cocciinellae from the diet breadth
+niche.breadth = niche.breadth[,!(colnames(niche.breadth) %in% "Dinocampus_coccinellae")]
+
+rownames(niche.breadth) = paste("Ha",niche.breadth$time)
+
+niche.breadth = t(niche.breadth[,!c(colnames(niche.breadth) %in% c("county","time"))])
+
+#niche.breadth[,1] = niche.breadth[,1]/107
+#niche.breadth[,2] = niche.breadth[,2]/107
+
+niche.width(niche.breadth, method="levins")
+niche.width(niche.breadth, method="shannon")
+
+(niche.width(niche.breadth, method="levins")[1]-1)/(nrow(niche.breadth)-1)
+(niche.width(niche.breadth, method="levins")[2]-1)/(nrow(niche.breadth)-1)
+#(niche.width(niche.breadth, method="levins")[3]-1)/(nrow(niche.breadth)-1)
+#(niche.width(niche.breadth, method="levins")[4]-1)/(nrow(niche.breadth)-1)
+
+niche.overlap(niche.breadth, method="pianka")
+```
+
+
 # 7. Network of interactions
 
 Tripartite network
@@ -1273,10 +1298,10 @@ dev.off()
 ```
 
 
-```{r publication NMDS multiplot}
-png("R_images/publication_NMDS_plots.png", height=4000, width=4000, units="px", res=300)
-lay.matrix = matrix(c(1,1,2,2,1,1,2,2,3,3,4,5,3,3,3,0), nrow=4, ncol=4, byrow=T)
-layout(lay.matrix)
+```{r publication NMDS guts}
+png("R_images/publication_NMDS_guts.png", height=4000, width=4000, units="px", res=300)
+#lay.matrix = matrix(c(1,1,2,2,1,1,2,2,3,3,4,5,3,3,3,0), nrow=4, ncol=4, byrow=T)
+#layout(lay.matrix)
 
 plot(meta.guts,type="n", xlim=c(-1,1), ylim=c(-1,1), cex.axis=2, cex.lab=1.5)
 points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1]=="May"),col="black",pch=1, cex=2)
@@ -1285,11 +1310,19 @@ points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1
 points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=="Oct"),col="blue",pch=15, cex=2)
 ordispider(meta.guts,group=fact_county.g[,1],col=c("green", "green4"),label=T, cex=1.5)
 ordiellipse(meta.guts,group=fact_time.g[,1],kind="ehull", lty=c(1,3),label=F,lwd=1)
-text(-0.5,-0.8,label="May", cex=2.5)
+text(-0.8,-0.5,label="May", cex=2.5)
 text(-0.8,0.5,label="Oct", cex=2.5)
 text(0.7,-0.9, label=paste0("Stress: ", round(meta.guts$stress, 4)), cex=1.5)
-text(-1,0.95, label="a)", cex=3)
 text(0.5,0.9,label="gut contents", cex=2.5)
+
+legend("bottomleft", legend=c("Oxfordshire - May","Oxfordshire - Oct","Yorkshire - May","Yorkshire - Oct"), col=c("black","black","blue","blue"), pch=c(1,16,22,15), cex=2, ncol=2, xpd=T)
+dev.off()
+```
+
+```{r publication NMDS comms and comms vs guts}
+png("R_images/publication_NMDS_comms_guts_plots.png", height=4000, width=4000, units="px", res=300)
+lay.matrix = matrix(c(1,1,0,0,1,1,4,0,2,2,3,0,2,2,2,0), nrow=4, ncol=4, byrow=T)
+layout(lay.matrix)
 
 plot(meta.comms,type="n", xlim=c(-3,3), ylim=c(-4,2.5), cex.axis=2, cex.lab=1.5)
 points(meta.comms, select=which(fact_all[,1]=="Oxfordshire" & fact_all[,2]=="May"),col="black", pch=1, cex=2)
@@ -1301,24 +1334,24 @@ ordiellipse(meta.comms,group=fact_all[,2],kind="ehull", lty=c(1,3),label=F, lwd=
 text(-3,-0.5,label="May", cex=2.5)
 text(3,2,label="Oct", cex=2.5)
 text(2.5,-3.7, label=paste0("Stress: ", round(meta.comms$stress, 4)), cex=1.5)
-text(-3,2.3, label="b)", cex=3)
+text(-3,2.3, label="a)", cex=3)
 text(0,2.3,label="community", cex=2.5)
 
-plot(meta.guts.comms,type="n", xlim=c(-2,5), ylim=c(-2.5,2), cex.axis=2, cex.lab=1.5)
+plot(meta.guts.comms,type="n", xlim=c(-2,5), ylim=c(-2,2.5), cex.axis=2, cex.lab=1.5)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="May"),col="black", pch=1, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="May"),col="blue", pch=22, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="Oct"),col="black", pch=16, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="Oct"),col="blue", pch=15, cex=2)
-ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=F, cex=1.5)
-ordiellipse(meta.guts.comms,group=fact_type[,1],kind="ehull", lty=c(1,3), label=F, lwd=2)
-text(3,-2.2, label=paste0("Stress: ", round(meta.guts.comms$stress, 4)), cex=1.5)
-text(-2.2,1.8, label="c)", cex=3)
-text(0,1.8,label="community", cex=2.5)
-text(0,-0.4,label="guts (inset)", cex=2.5)
+ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=T, cex=1.5)
+ordiellipse(meta.guts.comms,group=fact_time[,1],kind="ehull", lty=c(1,3), label=F, lwd=2)
+text(3,-1.8, label=paste0("Stress: ", round(meta.guts.comms$stress, 4)), cex=1.5)
+text(-2,2.2, label="b)", cex=3)
+text(2,2,label="Oct", cex=2.5)
+text(-2,0,label="May", cex=2.5)
 
 plot(meta.guts.comms,type="n", xlim=c(-0.2,0.1), ylim=c(-0.2,0.3), xlab="", ylab="", cex.axis=2)
-ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=F, cex=1.5)
-ordiellipse(meta.guts.comms,group=fact_type[,1],kind="ehull",lty=c(1,3),label=F, lwd=2)
+ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=T, cex=1.5)
+ordiellipse(meta.guts.comms,group=fact_time[,1],kind="ehull",lty=c(1,3),label=F, lwd=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="May"),col="black", pch=1, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="May"),col="blue", pch=22, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="Oct"),col="black", pch=16, cex=2)

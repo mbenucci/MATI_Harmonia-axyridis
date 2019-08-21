@@ -1252,7 +1252,7 @@ blk_b = ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
   labs(x="", y="Log10(Normalised DNA reads)") +
   theme_bw() +
   facet_grid(.~pcr) +
-  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=15), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0,0,0.6), unit="cm"))
+  theme(legend.position="right", legend.title=element_blank(), legend.text=element_text(size=20), axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0,0,0.6), unit="cm"))
 
 png("R_images/publication_blocking-primers.png", height=4000, width=4000, units="px", res=300)
 plot_grid(blk_a, blk_b, labels=c("a)","b)"), ncol=2, nrow=1, label_size=25, label_fontface=1)
@@ -1364,9 +1364,9 @@ dev.off()
 ```
 
 ```{r publication tripartite plot}
-name.legend=c("Aphididae","Acari","Tachinidae","Chironomidae","Chrysomelidae","Ectopsocidae","Psocoptera")
-col.legend=c("cyan3","orchid","purple","tan4","black","darkolivegreen4","khaki")
-col.prey=c("cyan3","orchid","cyan3","purple","cyan3","black","tan4","darkolivegreen4","khaki")
+name.legend=c("Hemiptera","Trombidiformes","Diptera","Coleoptera","Psocoptera")
+col.legend=c("cyan3","orchid","tan4","darkolivegreen4","khaki")
+col.prey=c("cyan3","orchid","cyan3","tan4","cyan3","darkolivegreen4","tan4","khaki","khaki")
 
 png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
 plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.077, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)

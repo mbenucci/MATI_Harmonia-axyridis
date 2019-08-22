@@ -598,14 +598,13 @@ full_blk_melt = melt(plot_frame)
 
 ```{r blk vs no-blk boxplot}
 full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
-box_a = ggplot(full_blk_melt,(aes(specie_type, value))) +
+box_a = ggplot(full_blk_melt, aes(specie_type, value)) +
   geom_boxplot(aes(fill=specie_type), outlier.shape = NA) +
   geom_jitter(alpha=0.5, size=4) +
   labs(x="", y="Normalised DNA reads") +
   theme_bw() +
-  facet_grid(.~specie_type) +
-  theme(legend.position="NA", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0.25,0,0.25), unit="cm")) +
-  geom_signif(na.rm=T, comparisons=list(c("prey","predator")), test="chisq.test")
+  facet_grid(.~pcr) +
+  theme(legend.position="none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0.25,0,0.25), unit="cm"))
 
 full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
 box_b = ggplot(full_blk_melt,(aes(specie_type, log10(value)))) +
@@ -622,21 +621,37 @@ dev.off()
 ```
 
 ```{r blk vs no-blk heatmap}
-a<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Drepanosiphum_platanoidis","Pyrrhalta_viburni"),],(aes(pcr, variable))) +
+heat_blk_melt = full_blk_melt
+heat_blk_melt[is.na(heat_blk_melt)] = 0
+heat_blk_melt[heat_blk_melt$variable == "THWA.may.Ha23" & heat_blk_melt$pcr == "blocking primers", "value"] = NA
+heat_blk_melt[heat_blk_melt$variable == "THWA.may.Ha7" & heat_blk_melt$pcr == "blocking primers", "value"] = NA
+heat_blk_melt[heat_blk_melt$variable == "LAWN.may.Ha22" & heat_blk_melt$pcr == "blocking primers", "value"] = NA
+heat_blk_melt[heat_blk_melt$variable == "LAWN.may.Ha23" & heat_blk_melt$pcr == "blocking primers", "value"] = NA
+heat_blk_melt[heat_blk_melt$variable == "LAWN.may.Ha24" & heat_blk_melt$pcr == "blocking primers", "value"] = NA
+
+View(heat_blk_melt)
+```
+
+```{r heatmap plot}
+
+
+a<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("Drepanosiphum_platanoidis","Pyrrhalta_viburni"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="transparent", limits=c(1,70), name="Normalised\nDNA reads\n") +
+  #scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="black", limits=c(1,70), name="Normalised\nDNA reads\n") +
+  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.1,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="")
 
-b<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Chrysomelidae","Euceraphis_betulae"),],(aes(pcr, variable))) +
+b<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("Chrysomelidae","Euceraphis_betulae"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=2000, na.value="transparent", limits=c(1,4000), name="Normalised\nDNA reads\n") + 
+  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.1,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="")
 
-c<-ggplot(full_blk_melt[full_blk_melt$specie_type %in% "predator",],(aes(pcr, variable))) +
+c<-ggplot(heat_blk_melt[heat_blk_melt$specie_type %in% "predator",],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=35000, na.value="transparent", limits=c(1,70000), name="Normalised\nDNA reads\n") +
+  #scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=35000, na.value="transparent", limits=c(1,70000), name="Normalised\nDNA reads\n") +
+  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.1,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="")
 
@@ -1267,10 +1282,10 @@ full_blk_melt[(full_blk_melt$pcr == "no-blocking primers"), "pcr"] = "no-blk"
 full_blk_melt[(full_blk_melt$pcr == "blocking primers"),"pcr"] = "blk"
 ```
 
-```{r publication blocking primers by samples}
+```{r publication heatmap blocking primers}
 heat_a<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("D.platanoidis","P.viburni"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="transparent", limits=c(1,70), name="Normalised\nDNA reads\n") +
+  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="green", limits=c(1,70), name="Normalised\nDNA reads\n") +
   scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
@@ -1399,40 +1414,22 @@ melt.comms.guts[grep("Ectopsocus|Graphopsocus|Valenzuela|Psocoptera", melt.comms
 ```
 
 ```{r publication barplot}
+col.barplot = c("orange","orchid","grey60","yellow","cyan","green","tan4","gold3","red","blue","khaki","aquamarine","olivedrab","black")
+
 png("R_images/publication_barplot_composition.png", height=4000, width=4000, units="px", res=300)
-ggplot(melt.comms.guts, aes(time,value)) +
+ggplot(melt.comms.guts, aes(sample_type,value)) +
   geom_bar(stat="identity", position="fill", aes(fill=order)) +
+  scale_y_continuous(expand=c(0,0)) +
+  scale_fill_manual(values=col.barplot, name = "") +
+  xlab("") +
+  ylab("DNA reads ratio") +
   coord_flip() +
-  facet_grid(county*sample_type~.) +
+  facet_grid(county*time~.) +
   theme_bw() +
-  theme(legend.position = "right", axis.text = element_text(size = 15), 
-        strip.text = element_text(size=15), axis.title = element_text(size =15),
-        legend.text = element_text(size=15))
+  theme(legend.position = "right", axis.text = element_text(size = 15), strip.text = element_text(size=15), 
+        axis.title = element_text(size =15),legend.text = element_text(size=15))
 dev.off()  
 ```
-
-
-```{r publication barplot}
-pa = ggplot(melt.comms, aes(time, value)) +
-  geom_bar(stat="identity", position="fill", aes(fill=order)) +
-  facet_grid(.~county, scales="free") +
-  theme(legend.position = "right", axis.text = element_text(size = 15), 
-        strip.text = element_text(size=15), axis.title = element_text(size =15),
-        legend.text = element_text(size=15))
-
-pb = ggplot(melt.guts, aes(time, value)) +
-  geom_bar(stat="identity", position="fill", aes(fill=variable)) +
-  scale_fill_manual(values = color16, name = "") +
-  facet_grid(.~county, scales="free") + 
-  theme(legend.position = "right", axis.text = element_text(size = 15), 
-        strip.text = element_text(size=15), axis.title = element_text(size =15),
-        legend.text = element_text(size=15))
-
-#png("R_images/publication_barplot_composition.png", height=4000, width=4000, units="px", res=300)
-#plot_grid(pa, pb)
-#dev.off()
-```
-
 
 ```{r log session info}
 sink("log_session_analysis.txt")

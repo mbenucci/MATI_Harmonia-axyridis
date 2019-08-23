@@ -628,30 +628,24 @@ heat_blk_melt[heat_blk_melt$variable == "THWA.may.Ha7" & heat_blk_melt$pcr == "b
 heat_blk_melt[heat_blk_melt$variable == "LAWN.may.Ha22" & heat_blk_melt$pcr == "blocking primers", "value"] = NA
 heat_blk_melt[heat_blk_melt$variable == "LAWN.may.Ha23" & heat_blk_melt$pcr == "blocking primers", "value"] = NA
 heat_blk_melt[heat_blk_melt$variable == "LAWN.may.Ha24" & heat_blk_melt$pcr == "blocking primers", "value"] = NA
-
-View(heat_blk_melt)
 ```
 
 ```{r heatmap plot}
-
-
 a<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("Drepanosiphum_platanoidis","Pyrrhalta_viburni"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  #scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="black", limits=c(1,70), name="Normalised\nDNA reads\n") +
-  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.1,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
+  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.01,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="")
 
 b<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("Chrysomelidae","Euceraphis_betulae"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.1,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
+  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.01,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="")
 
 c<-ggplot(heat_blk_melt[heat_blk_melt$specie_type %in% "predator",],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  #scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=35000, na.value="transparent", limits=c(1,70000), name="Normalised\nDNA reads\n") +
-  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.1,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
+  scale_fill_gradientn(colors=c("grey87","orange","blue"), values=c(0,0.5,1), na.value="black", name="Normalised\nDNA reads\n") +  
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="")
 
@@ -714,7 +708,7 @@ ha.oxf = subset(oxf.guts[,!c(colnames(oxf.guts) %in% colnames(infos))], select =
 ha.oxf = cbind(ha.oxf, infos)
 prey.oxf = ha.oxf[,!(colnames(ha.oxf) %in% c("Harmonia_axyridis","Homo_sapiens"))]
 
-prey.oxf[,1:11][prey.oxf[,1:11] > 0] <- 1
+prey.oxf[,!c(colnames(prey.oxf) %in% c("sample_id","sample_type","pcr","site","time","county"))][prey.oxf[,!c(colnames(prey.oxf) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
 
 # We do the same process for the Yorkshire samples
 
@@ -727,7 +721,7 @@ ha.yor = subset(yor.guts[,!c(colnames(yor.guts) %in% colnames(infos))], select =
 ha.yor = cbind(ha.yor, infos)
 prey.yor = ha.yor[,!(colnames(ha.yor) %in% c("Harmonia_axyridis","Homo_sapiens"))]
 
-prey.yor[,1:9][prey.yor[,1:9] > 0] <- 1
+prey.yor[,!c(colnames(prey.yor) %in% c("sample_id","sample_type","pcr","site","time","county"))][prey.yor[,!c(colnames(prey.yor) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
 ```
 
 ```{r join full guts samples, include=F}
@@ -1275,33 +1269,36 @@ dev.off()
 ```
 
 ```{r species names}
-full_blk_melt$specie = gsub("[a-z]{7,}_", ".", full_blk_melt$specie)
-full_blk_melt$pcr = as.character(full_blk_melt$pcr)
+heat_blk_melt$specie = gsub("[a-z]{7,}_", ".", heat_blk_melt$specie)
+heat_blk_melt$pcr = as.character(heat_blk_melt$pcr)
 
-full_blk_melt[(full_blk_melt$pcr == "no-blocking primers"), "pcr"] = "no-blk"
-full_blk_melt[(full_blk_melt$pcr == "blocking primers"),"pcr"] = "blk"
+heat_blk_melt[(heat_blk_melt$pcr == "no-blocking primers"), "pcr"] = "no-blk"
+heat_blk_melt[(heat_blk_melt$pcr == "blocking primers"),"pcr"] = "blk"
 ```
 
 ```{r publication heatmap blocking primers}
-heat_a<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("D.platanoidis","P.viburni"),],(aes(pcr, variable))) +
+heat_a<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("D.platanoidis","P.viburni"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="green", limits=c(1,70), name="Normalised\nDNA reads\n") +
+  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.01,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
+  #scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=40, na.value="green", limits=c(1,70), name="Normalised\nDNA reads\n") +
   scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
   theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
 
-heat_b<-ggplot(full_blk_melt[full_blk_melt$specie %in% c("Chrysomelidae","E.betulae"),],(aes(pcr, variable))) +
+heat_b<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("Chrysomelidae","E.betulae"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=2000, na.value="transparent", limits=c(1,4000), name="Normalised\nDNA reads\n") + 
+  scale_fill_gradientn(colors=c("white","grey87","orange","blue"), values=c(0,0.01,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
+  #scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=2000, na.value="transparent", limits=c(1,4000), name="Normalised\nDNA reads\n") + 
   scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
   theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text.y = element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
 
-heat_c<-ggplot(full_blk_melt[full_blk_melt$specie_type %in% "predator",],(aes(pcr, variable))) +
+heat_c<-ggplot(heat_blk_melt[heat_blk_melt$specie_type %in% "predator",],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
-  scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=35000, na.value="transparent", limits=c(1,70000), name="Normalised\nDNA reads\n") +
+  scale_fill_gradientn(colors=c("grey87","orange","blue"), values=c(0,0.5,1), na.value="black", name="Normalised\nDNA reads\n") + 
+  #scale_fill_gradient2(low="gray87", high="blue", mid="orange", midpoint=35000, na.value="transparent", limits=c(1,70000), name="Normalised\nDNA reads\n") +
   scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
@@ -1382,6 +1379,14 @@ dev.off()
 name.legend=c("Hemiptera","Trombidiformes","Diptera","Coleoptera","Psocoptera")
 col.legend=c("cyan3","orchid","tan4","darkolivegreen4","khaki")
 col.prey=c("cyan3","orchid","cyan3","tan4","cyan3","darkolivegreen4","tan4","khaki","khaki")
+
+colnames(web.dc)
+
+paste(colnames(web.dc),"( N =",sum(web.dc),")")
+
+
+
+web.ha
 
 png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
 plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.077, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)

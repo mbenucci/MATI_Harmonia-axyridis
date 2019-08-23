@@ -1382,15 +1382,30 @@ name.legend=c("Hemiptera","Trombidiformes","Diptera","Coleoptera","Psocoptera")
 col.legend=c("cyan3","orchid","tan4","darkolivegreen4","khaki")
 col.prey=c("cyan3","orchid","cyan3","tan4","cyan3","darkolivegreen4","tan4","khaki","khaki")
 
-#colnames(web.dc) = paste(colnames(web.dc),"( N =",sum(web.dc),")")
-#rownames(web.dc)[1] = paste(rownames(web.dc)[1],"( N =",length(oxf.guts[grep("may", oxf.guts$sample_id),"sample_id"]),")")
-#rownames(web.dc)[2] = paste(rownames(web.dc)[2],"( N =",length(yor.guts[grep("may", yor.guts$sample_id),"sample_id"]),")")
-#rownames(web.dc)[3] = paste(rownames(web.dc)[3],"( N =",length(oxf.guts[grep("oct", oxf.guts$sample_id),"sample_id"]),")")
-# rownames(web.dc)[4] = paste(rownames(web.dc)[4],"( N =",length(yor.guts[grep("oct", yor.guts$sample_id),"sample_id"]),")")
+web.ha
+```
 
+```{r tripartite network}
 png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
-plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.077, arrow="down", col.low="transparent", bor.col.low="black", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
+plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, high.xoff = 0.1, low.xoff = 0.1, low.y=1.54, low.spacing=0.03, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
 plotweb(web.ha, method="normal", labsize=3,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.077, low.spacing=0.03, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
+#web.dc interactions
+text(0.2,2.3, paste("N =", web.dc[1,1]), cex=1.5)
+text(0.375,2.3, paste("N =", web.dc[2,1]), cex=1.5)
+text(0.7,2.3, paste("N =", web.dc[3,1]), cex=1.5)
+# web.ha interactions
+text(0.01,1.2, "*", cex=3)
+text(0.035,1.2, "*", cex=3)
+text(0.15,1.2, paste("N =", web.ha[3,1]), cex=1.5) 
+text(0.5,1.2, paste("N =", web.ha[3,2]), cex=1.5)
+text(0.755,1.2, "*", cex=3)
+text(0.785,1.2, "*", cex=3)
+text(0.83,1.2, "*", cex=3)
+text(0.91,1.2, paste("N =", web.ha[3,4]), cex=1.5)
+text(1.035,1.2, "*", cex=3)
+text(1.065,1.2, "*", cex=3)
+text(1.11,1.2, paste("N =", web.ha[8,4]), cex=1.5)
+text(1.2,1.2, paste("N =", web.ha[9,4]), cex=1.5)
 legend("bottom", legend=name.legend, fill=col.legend, bty="n", border="black",ncol=6, xpd=T, cex=1.5)
 dev.off()
 ```

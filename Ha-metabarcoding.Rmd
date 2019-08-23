@@ -724,6 +724,11 @@ prey.yor = ha.yor[,!(colnames(ha.yor) %in% c("Harmonia_axyridis","Homo_sapiens")
 prey.yor[,!c(colnames(prey.yor) %in% c("sample_id","sample_type","pcr","site","time","county"))][prey.yor[,!c(colnames(prey.yor) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
 ```
 
+```{r}
+oxf.guts$sample_id
+```
+
+
 ```{r join full guts samples, include=F}
 full.guts = full_join(prey.oxf, prey.yor)
 
@@ -753,8 +758,8 @@ png("R_images/Occurr_taxa_in_guts.png", width=4000, height=4000, units="px", res
 ggplot(full.guts, aes(time,value)) +
   geom_bar(stat="identity", position="stack") +
   facet_grid(.~county) +
-  coord_cartesian(ylim=c(0,80)) +
-  scale_y_continuous(breaks=seq(0,80,10)) +
+  coord_cartesian(ylim=c(0,30)) +
+  scale_y_continuous(breaks=seq(0,30,5)) +
   labs(title="Total occurrence of taxa in Harmonia axyridis gut contents\nacross counties and seasons", y="N occurrences of taxa", x="Sampling time")
 dev.off()
 ```
@@ -827,7 +832,7 @@ ratio.guts = as.data.frame(reads.guts)
 ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% "Hemiptera")]
 ```
 
-PERMANOVA analysis on the gut contents show a significant influence from all variables (season: p-value=9.999e-05; county: p-value=3e-04; both: p-value=9.999e-05). It worths mentioning though that the residual values for these samples are all high; so we can assume that the influence of the low number of samples positive for prey taxa could have skewed the results.
+PERMANOVA analysis on the gut contents show a significant influence from all variables (season: p-value=0.0001; county: p-value=0.004); but not both (p-value=0.0883). It worths mentioning though that the residual values for these samples are all high; so we can assume that the influence of the low number of samples positive for prey taxa could have skewed the results.
 
 
 ```{r permanova guts reads}
@@ -997,8 +1002,7 @@ We can now plot the tripartite network.
 ```{r tripartite}
 png("R_images/tripartite_network.png", width=6000, height=4000, res=300)
 plotweb(web.dc, method="normal", labsize=2, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.063, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
-plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.085, low.spacing=0.02, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), add=T, empty=F)
-legend("bottom", legend=rownames(web.ha), bty="n", border="black",ncol=6, xpd=T)
+plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.07, low.spacing=0.02, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), add=T, empty=F)
 dev.off()
 ```
 
@@ -1312,10 +1316,8 @@ dev.off()
 
 ```{r publication NMDS guts}
 png("R_images/publication_NMDS_guts.png", height=4000, width=4000, units="px", res=300)
-#lay.matrix = matrix(c(1,1,2,2,1,1,2,2,3,3,4,5,3,3,3,0), nrow=4, ncol=4, byrow=T)
-#layout(lay.matrix)
 
-plot(meta.guts,type="n", xlim=c(-1,1), ylim=c(-1,1), cex.axis=2, cex.lab=1.5)
+plot(meta.guts,type="n", xlim=c(-1,1.2), ylim=c(-1,1), cex.axis=2, cex.lab=1.5)
 points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1]=="May"),col="black",pch=1, cex=2)
 points(meta.guts, select=which(fact_county.g[,1]=="Yorkshire" & fact_time.g[,1]=="May"),col="blue",pch=22, cex=2)
 points(meta.guts, select=which(fact_county.g[,1]=="Oxfordshire" & fact_time.g[,1]=="Oct"),col="black",pch=16, cex=2)
@@ -1349,14 +1351,14 @@ text(2.5,-3.7, label=paste0("Stress: ", round(meta.comms$stress, 4)), cex=1.5)
 text(-3,2.3, label="a)", cex=3)
 text(0,2.3,label="community", cex=2.5)
 
-plot(meta.guts.comms,type="n", xlim=c(-2,5), ylim=c(-2,2.5), cex.axis=2, cex.lab=1.5)
+plot(meta.guts.comms,type="n", xlim=c(-2,5), ylim=c(-2.5,2.5), cex.axis=2, cex.lab=1.5)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="May"),col="black", pch=1, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="May"),col="blue", pch=22, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Oxfordshire" & fact_time[,1]=="Oct"),col="black", pch=16, cex=2)
 points(meta.guts.comms, select=which(fact_county[,1]=="Yorkshire" & fact_time[,1]=="Oct"),col="blue", pch=15, cex=2)
-ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=T, cex=1.5)
+ordispider(meta.guts.comms,group=fact_type[,1],col=c("darkorange", "green4"),label=F, cex=1.5)
 ordiellipse(meta.guts.comms,group=fact_time[,1],kind="ehull", lty=c(1,3), label=F, lwd=2)
-text(3,-1.8, label=paste0("Stress: ", round(meta.guts.comms$stress, 4)), cex=1.5)
+text(3,-2.4, label=paste0("Stress: ", round(meta.guts.comms$stress, 4)), cex=1.5)
 text(-2,2.2, label="b)", cex=3)
 text(2,2,label="Oct", cex=2.5)
 text(-2,0,label="May", cex=2.5)
@@ -1380,16 +1382,14 @@ name.legend=c("Hemiptera","Trombidiformes","Diptera","Coleoptera","Psocoptera")
 col.legend=c("cyan3","orchid","tan4","darkolivegreen4","khaki")
 col.prey=c("cyan3","orchid","cyan3","tan4","cyan3","darkolivegreen4","tan4","khaki","khaki")
 
-colnames(web.dc)
-
-paste(colnames(web.dc),"( N =",sum(web.dc),")")
-
-
-
-web.ha
+#colnames(web.dc) = paste(colnames(web.dc),"( N =",sum(web.dc),")")
+#rownames(web.dc)[1] = paste(rownames(web.dc)[1],"( N =",length(oxf.guts[grep("may", oxf.guts$sample_id),"sample_id"]),")")
+#rownames(web.dc)[2] = paste(rownames(web.dc)[2],"( N =",length(yor.guts[grep("may", yor.guts$sample_id),"sample_id"]),")")
+#rownames(web.dc)[3] = paste(rownames(web.dc)[3],"( N =",length(oxf.guts[grep("oct", oxf.guts$sample_id),"sample_id"]),")")
+# rownames(web.dc)[4] = paste(rownames(web.dc)[4],"( N =",length(yor.guts[grep("oct", yor.guts$sample_id),"sample_id"]),")")
 
 png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
-plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.077, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
+plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, low.y=1.54, low.spacing=0.077, arrow="down", col.low="transparent", bor.col.low="black", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
 plotweb(web.ha, method="normal", labsize=3,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.077, low.spacing=0.03, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
 legend("bottom", legend=name.legend, fill=col.legend, bty="n", border="black",ncol=6, xpd=T, cex=1.5)
 dev.off()

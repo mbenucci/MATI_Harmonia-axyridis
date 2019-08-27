@@ -123,7 +123,7 @@ ha1.aug18=ha1.aug18[,!(colnames(ha1.aug18)%in% 'X.OTU.ID')]
 ha2.aug18=ha2.aug18[,!(colnames(ha2.aug18)%in% 'X.OTU.ID')]
 ```
 
-# 2. Initial overview
+# 2. Libraries overview
 
 The data were generated from 3 separate sequencing runs, therefore we want to check the read depth across the 3 runs. The first two sequencing runs (structured reflected into the data frames) contain extra samples which we are not interested, while the last data frame contains only samples regarding _Harmonia axyridis_ and doesn't need to be manipulated. We carry over only the plates that include _H. axyridis_ samples, making sure we transfer also all the Positive and Negative samples from each data frame. These will be used to calculate the filter threshold for each frame indipendently further down the analysis.
 
@@ -485,6 +485,7 @@ ha18.2.post$pcr = "with blocking"
 ```
 
 # 4. Blocking primers
+
 We test here the effects of using blocking primers in gut contents analysis of _Harmonia axyridis_ in the UK. In our case we developed Harmonia-specific blocking primers with a 3'-3C tail. These were added during the first PCR of both the sequencing runs done in August 2018. No blocking primer was added in the sequencing run from August 2017. In total we have same N=50 samples from May 2017 collected in Lawns and Thwaite Gardens that were sequenced twice in two separate runs, one without and one with blocking primers. First we extract the samples from their respective data frames, then we investigate the difference across these 50 samples that were sequenced with and without blocking primers (Ntot = 100).
 
 ```{r boxplot blk primers, include=TRUE, echo=FALSE}
@@ -738,11 +739,6 @@ prey.yor = ha.yor[,!(colnames(ha.yor) %in% c("Harmonia_axyridis","Homo_sapiens")
 
 prey.yor[,!c(colnames(prey.yor) %in% c("sample_id","sample_type","pcr","site","time","county"))][prey.yor[,!c(colnames(prey.yor) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
 ```
-
-```{r}
-oxf.guts$sample_id
-```
-
 
 ```{r join full guts samples, include=F}
 full.guts = full_join(prey.oxf, prey.yor)
@@ -1240,8 +1236,6 @@ dev.off()
 This last chunk is only to create the base for the summary table presented in supplementary informaton. This uses the presence/absence data for the gut contents and the DNA bulk samples. The table was then expanded externally to R to include more summarising informations.
 
 ```{r generating data summary table}
-colnames(niche.ratio)
-
 guts.summary = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
 
 colnames(ratio.sp.comms)

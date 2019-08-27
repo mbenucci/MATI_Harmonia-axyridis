@@ -654,6 +654,21 @@ grid.arrange(a,b,c, ncol=3, nrow=1, left="Sample ID")
 dev.off()
 ```
 
+```{r}
+ggplot(full_blk_melt, aes(pcr, value)) +
+  geom_bar(stat="identity", position="fill",aes(fill=specie)) +
+  labs(x="", y="Normalised DNA reads") +
+  theme_bw() +
+  theme(legend.position="none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0.25,0,0.25), unit="cm"))
+
+ggplot(full_blk_melt, aes(pcr, value)) +
+  geom_bar(stat="identity", position="fill",aes(fill=specie)) +
+  labs(x="", y="Normalised DNA reads") +
+  theme_bw() +
+  coord_cartesian(ylim=c(0.98,1)) +
+  theme(legend.position="none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=15), plot.margin=unit(c(0,0.25,0,0.25), unit="cm"))
+```
+
 # 5. Detection of prey taxa
 
 We want to investigate now the temporal and spatial networks we could detectd from _Harmonia axyridis_ gut contents. At this stage we will use only the datasets that were sequenced with blocking primers, and to better investigate the prey DNA we detected, we decided to remove the predator from our datasets. 
@@ -911,7 +926,9 @@ We calculate the niche breadth and niche overlap.
 
 ```{r diet/niche null model index}
 niche.ratio = as.data.frame(ratio.guts)
-niche.ratio[,1:15][niche.ratio[,1:15] > 0] <- 1
+colnames(niche.ratio)
+
+niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr","site","time","county"))][niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
 
 niche.breadth = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(county, time) %>% summarise_all(list(sum)))
 
@@ -1224,6 +1241,7 @@ This last chunk is only to create the base for the summary table presented in su
 
 ```{r generating data summary table}
 colnames(niche.ratio)
+
 guts.summary = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
 
 colnames(ratio.sp.comms)
@@ -1392,7 +1410,7 @@ plotweb(web.ha, method="normal", labsize=3,  text.rot=90, y.width.low=0.1, y.wid
 #web.dc interactions
 text(0.2,2.3, paste("N =", web.dc[1,1]), cex=1.5)
 text(0.375,2.3, paste("N =", web.dc[2,1]), cex=1.5)
-text(0.7,2.3, paste("N =", web.dc[3,1]), cex=1.5)
+text(0.7,2.3, paste("N =", web.dc[3,1]), cex=1.5, col="white")
 # web.ha interactions
 text(0.01,1.2, "*", cex=3)
 text(0.035,1.2, "*", cex=3)
@@ -1400,7 +1418,7 @@ text(0.15,1.2, paste("N =", web.ha[3,1]), cex=1.5)
 text(0.5,1.2, paste("N =", web.ha[3,2]), cex=1.5)
 text(0.755,1.2, "*", cex=3)
 text(0.785,1.2, "*", cex=3)
-text(0.83,1.2, "*", cex=3)
+text(0.83,1.2, "*", cex=3, col="white")
 text(0.91,1.2, paste("N =", web.ha[3,4]), cex=1.5)
 text(1.035,1.2, "*", cex=3)
 text(1.065,1.2, "*", cex=3)

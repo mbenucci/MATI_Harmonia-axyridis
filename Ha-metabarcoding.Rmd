@@ -535,7 +535,7 @@ blk.reads = blk.reads[,!(colnames(blk.reads) %in% "Lumbricus_rubellus")]
 blk.ratio = blk.ratio[,!(colnames(blk.ratio) %in% "Lumbricus_rubellus")]
 ```
 
-Before testing whether the blocking primers had an impact on the DNA reads of prey and predator, we needed to make sure that both subsets were comparable in terms of coverage. The Wilcoxon test showed that the coverage of the two subsets were significanlty different (Wilcoxon test: W = 1492, p-value = 0.0063). We decided therefore to include a normalisation step by dividing DNA reads by the total number of reads in each set, and multiplying by 1e06 (Wilcoxon test on normalised reads: W = 1144, p-value = 0.8903).
+Before testing whether the blocking primers had an impact on the DNA reads of prey and predator, we needed to make sure that both subsets were comparable in terms of coverage. The Wilcoxon test showed that the coverage of the two subsets were significantly different (Wilcoxon test: W = 1492, p-value = 0.0063). We decided therefore to include a normalisation step by dividing DNA reads by the total number of reads in each set, and multiplying by 1e06 (Wilcoxon test on normalised reads: W = 1144, p-value = 0.8903).
 
 ```{r normalisation, include=F}
 wilcox.test(rowSums(no.blk.reads[,1:4]), rowSums(blk.reads[,1:4]))
@@ -544,6 +544,22 @@ norm.no.blk.reads = (no.blk.reads[,1:4]/sum(no.blk.reads[,1:4]))*1000000
 norm.blk.reads = (blk.reads[,1:4]/sum(blk.reads[,1:4]))*1000000
 
 wilcox.test(rowSums(norm.no.blk.reads), rowSums(norm.blk.reads))
+```
+
+```{r calculation mean ratio with standard error}
+# mean with se of Harmonia
+mean(no.blk.ratio$Harmonia_axyridis)*100
+sd(no.blk.ratio$Harmonia_axyridis)/sqrt(length(no.blk.ratio$Harmonia_axyridis))*100
+
+mean(blk.ratio$Harmonia_axyridis)*100
+sd(blk.ratio$Harmonia_axyridis)/sqrt(length(blk.ratio$Harmonia_axyridis))*100
+
+# mean with se of preys
+mean(rowSums(no.blk.ratio[,!(colnames(no.blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))]))*100
+sd(rowSums(no.blk.ratio[,!(colnames(no.blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))]))/sqrt(length(rowSums(no.blk.ratio[,!(colnames(no.blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))])))*100
+
+mean(rowSums(blk.ratio[,!(colnames(blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))]))*100
+sd(rowSums(blk.ratio[,!(colnames(blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))]))/sqrt(length(rowSums(blk.ratio[,!(colnames(blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))])))*100
 ```
 
 After all the previous quality controls and contamination controls we retained the great majority of the gut content samples for the sequencing run without blocking primers (all N=50 samples retained), and with blocking primers (N=45 out of N=50 initial samples). We could now test whether there was an association between the use of blocking primers and the number of reads that we obtained for the prey items and the predator, and we obtain a significant association between the presence of the blocking primers and the number of reads obtained from the sequencing (Chi-squared test: Chi-squared = 13956, df = 1, p-value < 2.2e-16)
@@ -556,6 +572,26 @@ prey.blk = sum(norm.blk.reads[,colnames(norm.blk.reads) != "Harmonia_axyridis"])
 pred.blk = sum(norm.blk.reads$Harmonia_axyridis)
 
 chisq.test(rbind(c(prey.blk, prey.no.blk), c(pred.blk, pred.no.blk)))
+```
+
+Visually checking the samples showed that 5 samples sequenced with blocking primers didn't pass the QC. In order to run the Mann-Whitney test with paired samples we need to remove the extra samples from the dataset without blocking primers and order the samples.
+
+```{r removing same lenght of samples}
+# selecting samples that are present in both datasets only
+norm.no.blk.reads = norm.no.blk.reads[(rownames(norm.no.blk.reads) %in% c(rownames(norm.blk.reads))),]
+
+# Ordering by rownames
+norm.no.blk.reads = norm.no.blk.reads[order(rownames(norm.no.blk.reads)),]
+norm.blk.reads = norm.blk.reads[order(rownames(norm.blk.reads)),]
+```
+
+
+```{r Mann-Whitney test on blocking primers}
+norm.no.blk.reads$Total_preys = rowSums(norm.no.blk.reads[,c(colnames(norm.no.blk.reads) != "Harmonia_axyridis")])
+norm.blk.reads$Total_preys = rowSums(norm.blk.reads[,c(colnames(norm.blk.reads) != "Harmonia_axyridis")])
+
+wilcox.test(norm.no.blk.reads$Harmonia_axyridis, norm.blk.reads$Harmonia_axyridis, paired=T, exact=F)
+wilcox.test(norm.no.blk.reads$Total_preys, norm.blk.reads$Total_preys, paired=T, exact=F)
 ```
 
 ```{r blk vs no-blk plot}
@@ -1393,8 +1429,6 @@ dev.off()
 name.legend=c("Hemiptera","Trombidiformes","Diptera","Coleoptera","Psocoptera")
 col.legend=c("cyan3","orchid","tan4","darkolivegreen4","khaki")
 col.prey=c("cyan3","orchid","cyan3","tan4","cyan3","darkolivegreen4","tan4","khaki","khaki")
-
-web.ha
 ```
 
 ```{r tripartite network}
@@ -1403,7 +1437,7 @@ plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), 
 plotweb(web.ha, method="normal", labsize=3,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.077, low.spacing=0.03, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
 #web.dc interactions
 text(0.2,2.3, paste("N =", web.dc[1,1]), cex=1.5)
-text(0.375,2.3, paste("N =", web.dc[2,1]), cex=1.5)
+text(0.375,2.3, "*", cex=3)
 text(0.7,2.3, paste("N =", web.dc[3,1]), cex=1.5, col="white")
 # web.ha interactions
 text(0.01,1.2, "*", cex=3)
@@ -1425,7 +1459,7 @@ dev.off()
 ```{r publication barplot simplified}
 #unique(melt.comms$variable)
 melt.guts = melt.guts[-(grep("Dinocampus_coccinellae", melt.guts$variable)),]
-
+View(melt.comms.guts)
 melt.comms.guts = full_join(melt.comms, melt.guts)
 
 melt.comms.guts$order = "NA"

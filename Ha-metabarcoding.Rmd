@@ -547,19 +547,22 @@ wilcox.test(rowSums(norm.no.blk.reads), rowSums(norm.blk.reads))
 ```
 
 ```{r calculation mean ratio with standard error}
-# mean with se of Harmonia
-mean(no.blk.ratio$Harmonia_axyridis)*100
-sd(no.blk.ratio$Harmonia_axyridis)/sqrt(length(no.blk.ratio$Harmonia_axyridis))*100
+norm.no.blk.ratio = norm.no.blk.reads[,]/rowSums(norm.no.blk.reads)
+norm.blk.ratio = norm.blk.reads[,]/rowSums(norm.blk.reads)
 
-mean(blk.ratio$Harmonia_axyridis)*100
-sd(blk.ratio$Harmonia_axyridis)/sqrt(length(blk.ratio$Harmonia_axyridis))*100
+# mean with se of Harmonia
+mean(norm.no.blk.ratio$Harmonia_axyridis)*100
+sd(norm.no.blk.ratio$Harmonia_axyridis)/sqrt(length(norm.no.blk.ratio$Harmonia_axyridis))*100
+
+mean(norm.blk.ratio$Harmonia_axyridis)*100
+sd(norm.blk.ratio$Harmonia_axyridis)/sqrt(length(norm.blk.ratio$Harmonia_axyridis))*100
 
 # mean with se of preys
-mean(rowSums(no.blk.ratio[,!(colnames(no.blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))]))*100
-sd(rowSums(no.blk.ratio[,!(colnames(no.blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))]))/sqrt(length(rowSums(no.blk.ratio[,!(colnames(no.blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))])))*100
+mean(rowSums(norm.no.blk.ratio[,!(colnames(norm.no.blk.ratio) %in% c("Harmonia_axyridis"))]))*100
+sd(rowSums(norm.no.blk.ratio[,!(colnames(norm.no.blk.ratio) %in% c("Harmonia_axyridis"))]))/sqrt(length(rowSums(norm.no.blk.ratio[,!(colnames(norm.no.blk.ratio) %in% c("Harmonia_axyridis"))])))*100
 
-mean(rowSums(blk.ratio[,!(colnames(blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))]))*100
-sd(rowSums(blk.ratio[,!(colnames(blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))]))/sqrt(length(rowSums(blk.ratio[,!(colnames(blk.ratio) %in% c("Harmonia_axyridis","sample_id","sample_type","pcr","time","site"))])))*100
+mean(rowSums(norm.blk.ratio[,!(colnames(norm.blk.ratio) %in% c("Harmonia_axyridis"))]))*100
+sd(rowSums(norm.blk.ratio[,!(colnames(norm.blk.ratio) %in% c("Harmonia_axyridis"))]))/sqrt(length(rowSums(norm.blk.ratio[,!(colnames(norm.blk.ratio) %in% c("Harmonia_axyridis"))])))*100
 ```
 
 After all the previous quality controls and contamination controls we retained the great majority of the gut content samples for the sequencing run without blocking primers (all N=50 samples retained), and with blocking primers (N=45 out of N=50 initial samples). We could now test whether there was an association between the use of blocking primers and the number of reads that we obtained for the prey items and the predator, and we obtain a significant association between the presence of the blocking primers and the number of reads obtained from the sequencing (Chi-squared test: Chi-squared = 13956, df = 1, p-value < 2.2e-16)

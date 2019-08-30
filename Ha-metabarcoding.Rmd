@@ -581,20 +581,20 @@ Visually checking the samples showed that 5 samples sequenced with blocking prim
 
 ```{r removing same lenght of samples}
 # selecting samples that are present in both datasets only
-norm.no.blk.reads = norm.no.blk.reads[(rownames(norm.no.blk.reads) %in% c(rownames(norm.blk.reads))),]
+norm.no.blk.reads2 = norm.no.blk.reads[(rownames(norm.no.blk.reads) %in% c(rownames(norm.blk.reads))),]
 
 # Ordering by rownames
-norm.no.blk.reads = norm.no.blk.reads[order(rownames(norm.no.blk.reads)),]
+norm.no.blk.reads2 = norm.no.blk.reads2[order(rownames(norm.no.blk.reads2)),]
 norm.blk.reads = norm.blk.reads[order(rownames(norm.blk.reads)),]
 ```
 
 
 ```{r Mann-Whitney test on blocking primers}
-norm.no.blk.reads$Total_preys = rowSums(norm.no.blk.reads[,c(colnames(norm.no.blk.reads) != "Harmonia_axyridis")])
+norm.no.blk.reads2$Total_preys = rowSums(norm.no.blk.reads2[,c(colnames(norm.no.blk.reads2) != "Harmonia_axyridis")])
 norm.blk.reads$Total_preys = rowSums(norm.blk.reads[,c(colnames(norm.blk.reads) != "Harmonia_axyridis")])
 
-wilcox.test(norm.no.blk.reads$Harmonia_axyridis, norm.blk.reads$Harmonia_axyridis, paired=T, exact=F)
-wilcox.test(norm.no.blk.reads$Total_preys, norm.blk.reads$Total_preys, paired=T, exact=F)
+wilcox.test(norm.no.blk.reads2$Harmonia_axyridis, norm.blk.reads$Harmonia_axyridis, paired=T, exact=F)
+wilcox.test(norm.no.blk.reads2$Total_preys, norm.blk.reads$Total_preys, paired=T, exact=F)
 ```
 
 ```{r blk vs no-blk plot}
@@ -801,7 +801,7 @@ full.guts = melt(full.guts)
 num.taxa = melt(num.taxa)
 ```
 
-We detected a total of 49 interactions in Oxfordshire in May (N tot=63), only 10 interactions in Oxfordshire in October (N tot=59); while we detected 28 and 22 interactions respectively in Yorkshire in May (N tot=104) and October (N tot=99).
+We detected a total of 16 interactions in Oxfordshire in May (N tot=63), only 10 interactions in Oxfordshire in October (N tot=59); while we detected 24 and 18 interactions respectively in Yorkshire in May (N tot=104) and October (N tot=99).
 
 ```{r guts occurrences plot, include=T, echo=F}
 png("R_images/Occurr_taxa_in_guts.png", width=4000, height=4000, units="px", res=300)
@@ -932,11 +932,11 @@ From the rarefaction curves of both species Richness and Shannon diversity extra
 
 ```{r rarefaction curves on guts, include=T, echo=F}
 abund.guts = as.data.frame(ratio.guts)
-abund.guts[,1:15][abund.guts[,1:15] > 0] <- 1
+abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))][abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
 
-abund.guts = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
+raref.guts = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
 
-raref.guts = t(abund.guts)
+raref.guts = t(raref.guts)
 colnames(raref.guts) = c("Oxfordshire May","Yorkshire May","Oxfordshire Oct","Yorkshire Oct")
 raref.guts = raref.guts[!c(rownames(raref.guts) %in% c("county","time")),]
 raref.guts = as.data.frame(raref.guts)
@@ -955,77 +955,19 @@ ggiNEXT(raref.guts_inext) +
   facet_grid(order~., labeller=as_labeller(strip_lab), scales="free")
 ```
 
-# 6. Niche breadth
-
-We calculate the niche breadth and niche overlap.
-
-```{r diet/niche null model index}
-niche.ratio = as.data.frame(ratio.guts)
-colnames(niche.ratio)
-
-niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr","site","time","county"))][niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
-
-niche.breadth = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(county, time) %>% summarise_all(list(sum)))
-
-# We remove Dinocampus cocciinellae from the diet breadth
-niche.breadth = niche.breadth[,!(colnames(niche.breadth) %in% "Dinocampus_coccinellae")]
-
-rownames(niche.breadth) = paste(niche.breadth$county, niche.breadth$time)
-
-niche.breadth = t(niche.breadth[,!c(colnames(niche.breadth) %in% c("county","time"))])
-
-#niche.breadth[,1] = niche.breadth[,1]/107
-#niche.breadth[,2] = niche.breadth[,2]/107
-
-niche.width(niche.breadth, method="levins")
-niche.width(niche.breadth, method="shannon")
-
-(niche.width(niche.breadth, method="levins")[1]-1)/(nrow(niche.breadth)-1)
-(niche.width(niche.breadth, method="levins")[2]-1)/(nrow(niche.breadth)-1)
-(niche.width(niche.breadth, method="levins")[3]-1)/(nrow(niche.breadth)-1)
-(niche.width(niche.breadth, method="levins")[4]-1)/(nrow(niche.breadth)-1)
-
-niche.overlap(niche.breadth, method="pianka")
-```
-
-```{r niche overlap by season}
-niche.breadth = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id","sample_type","pcr","site","county"))] %>% group_by(time) %>% summarise_all(list(sum)))
-
-# We remove Dinocampus cocciinellae from the diet breadth
-niche.breadth = niche.breadth[,!(colnames(niche.breadth) %in% "Dinocampus_coccinellae")]
-
-rownames(niche.breadth) = paste("Ha",niche.breadth$time)
-
-niche.breadth = t(niche.breadth[,!c(colnames(niche.breadth) %in% c("county","time"))])
-
-#niche.breadth[,1] = niche.breadth[,1]/107
-#niche.breadth[,2] = niche.breadth[,2]/107
-
-niche.width(niche.breadth, method="levins")
-niche.width(niche.breadth, method="shannon")
-
-(niche.width(niche.breadth, method="levins")[1]-1)/(nrow(niche.breadth)-1)
-(niche.width(niche.breadth, method="levins")[2]-1)/(nrow(niche.breadth)-1)
-#(niche.width(niche.breadth, method="levins")[3]-1)/(nrow(niche.breadth)-1)
-#(niche.width(niche.breadth, method="levins")[4]-1)/(nrow(niche.breadth)-1)
-
-niche.overlap(niche.breadth, method="pianka")
-```
-
-
-# 7. Network of interactions
+# 6. Network of interactions
 
 Tripartite network
 
 ```{r tripartite gut contents}
-abund.guts$county = gsub("rd{1}|[a-z]{5}$", "", abund.guts$county)
+network.guts = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
 
-rownames(abund.guts) = paste(abund.guts$county, abund.guts$time)
-network.guts = abund.guts[,!c(colnames(abund.guts) %in% c("time","county"))]
+network.guts$county = gsub("rd{1}|[a-z]{5}$", "", network.guts$county)
+rownames(network.guts) = paste(network.guts$county, network.guts$time)
+
+network.guts = network.guts[,!c(colnames(network.guts) %in% c("time","county"))]
 
 network.guts = as.data.frame(t(network.guts))
-
-rownames(network.guts)[10] <- "Chironomus"
 
 web.ha = network.guts[!c(rownames(network.guts) %in% "Dinocampus_coccinellae"),]
 web.dc = network.guts[c(rownames(network.guts) %in% "Dinocampus_coccinellae"),]
@@ -1040,9 +982,10 @@ rownames(web.dc)
 
 We set the order of prey by directly changing the order of rows into the network becuase the top level contains only one column, the parasite _Dinocampus coccinellae_ and changing the order using `sortweb(food.web, sort.order="seq", sequence=list(seq.higher=seq.high, seq.lower=seq.low)` is going to give errors in the top trophic level.
 
+
 ```{r order}
-#"Betulaphis","Clethrobius_comes","Taeniothrips_inconsequens","Thripidae","Eucallipterus_tiliae",
-web.ha = web.ha[c("Callipterinella","Trombidiformes_sp._BOLD:ACI3657","Euceraphis","Ocytata_pallipes","Drepanosiphum_platanoidis","Chrysomelidae","Chironomus","Ectopsocus_californicus","Psocoptera"),]
+#"Betulaphis","Clethrobius_comes","Taeniothrips_inconsequens","Thripidae",
+web.ha = web.ha[c("Callipterinella","Trombidiformes_sp._BOLD:ACI3657","Euceraphis","Ocytata_pallipes","Drepanosiphum_platanoidis","Chrysomelidae","Chironomus_nuditarsis","Ectopsocus_californicus","Eucallipterus_tiliae","Psocoptera"),]
 
 rownames(web.ha) = gsub("_|_[A-Z0-9:]{11,13}", " ", rownames(web.ha))
 rownames(web.ha) = gsub("[a-z]{5,}\\s(?!sp)",".", rownames(web.ha), perl=T)
@@ -1058,7 +1001,7 @@ plotweb(web.ha, method="normal", labsize=2,  text.rot=90, y.width.low=0.1, y.wid
 dev.off()
 ```
 
-# 8. Community composition.
+# 7. Community composition.
 
 We now investigate the arboreal communities associated with the _Harmonia axyridis_ sampled in both counties across the two separate seasons.
 
@@ -1270,12 +1213,12 @@ text(-0.4,-0.6, scores(meta.guts.comms$stress))
 dev.off()
 ```
 
-# 9. Generating data summary table
+# 8. Generating data summary table
 
 This last chunk is only to create the base for the summary table presented in supplementary informaton. This uses the presence/absence data for the gut contents and the DNA bulk samples. The table was then expanded externally to R to include more summarising informations.
 
 ```{r generating data summary table}
-guts.summary = as.data.frame(niche.ratio[,!c(colnames(niche.ratio) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
+guts.summary = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
 
 colnames(ratio.sp.comms)
 comms.summary = as.data.frame(ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
@@ -1297,7 +1240,11 @@ final.data = t(final.data)
 write.csv(final.data, "R_outputs/Data_summary_table.csv")
 ```
 
-# 10. Publication plot
+```{r}
+View(guts.summary)
+```
+
+# 9. Publication plot
 
 ```{r publication blocking primers plot}
 full_blk_melt$pcr = factor(full_blk_melt$pcr, levels=c("no-blocking primers","blocking primers"))
@@ -1339,7 +1286,7 @@ heat_a<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("D.platanoidis","P.vibu
   scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
-  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
+  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,-0.2,0,0.8), unit="cm"))
 
 heat_b<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("Chrysomelidae","E.betulae"),],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
@@ -1348,7 +1295,7 @@ heat_b<-ggplot(heat_blk_melt[heat_blk_melt$specie %in% c("Chrysomelidae","E.betu
   scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
-  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text.y = element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
+  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text.y = element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,-0.2,0,0.8), unit="cm"))
 
 heat_c<-ggplot(heat_blk_melt[heat_blk_melt$specie_type %in% "predator",],(aes(pcr, variable))) +
   geom_tile(aes(fill=value), linetype=1, color="gray70", size=0.2) +
@@ -1357,10 +1304,11 @@ heat_c<-ggplot(heat_blk_melt[heat_blk_melt$specie_type %in% "predator",],(aes(pc
   scale_x_discrete(limits=c("no-blk","blk")) +
   theme_classic() +
   facet_grid(.~specie) + labs(x="", y="") +
-  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text.y = element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,0), unit="cm"))
+  theme(legend.position="right", legend.text=element_text(size=15), axis.text.x=element_text(size=15), axis.ticks.x=element_blank(), axis.text.y = element_blank(), axis.text=element_text(size=15), axis.title=element_text(size=15), strip.text=element_text(size=12), plot.margin=unit(c(0,0,0,1), unit="cm"))
 
 png("R_images/publication_heatmap_block-primers.png", height=3000, width=6000, units="px", res=300)
-grid.arrange(heat_a, heat_b, heat_c, ncol=3, nrow=1, left="Sample ID")
+#grid.arrange(heat_a, heat_b, heat_c, ncol=3, nrow=1, left="Sample ID")
+plot_grid(heat_a, heat_b, heat_c, labels=c("a)","b)","c)"), nrow=1, label_size=25, label_fontface=1)
 dev.off()
 ```
 
@@ -1428,13 +1376,13 @@ legend("bottom", legend=c("Oxfordshire - May","Oxfordshire - Oct","Yorkshire - M
 dev.off()
 ```
 
-```{r publication tripartite plot}
+```{r publication tripartite names and legend}
 name.legend=c("Hemiptera","Trombidiformes","Diptera","Coleoptera","Psocoptera")
 col.legend=c("cyan3","orchid","tan4","darkolivegreen4","khaki")
-col.prey=c("cyan3","orchid","cyan3","tan4","cyan3","darkolivegreen4","tan4","khaki","khaki")
+col.prey=c("cyan3","orchid","cyan3","tan4","cyan3","darkolivegreen4","tan4","khaki","cyan3","khaki")
 ```
 
-```{r tripartite network}
+```{r publication tripartite network plot}
 png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
 plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, high.xoff = 0.1, low.xoff = 0.1, low.y=1.54, low.spacing=0.03, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
 plotweb(web.ha, method="normal", labsize=3,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.077, low.spacing=0.03, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
@@ -1447,17 +1395,23 @@ text(0.01,1.2, "*", cex=3)
 text(0.035,1.2, "*", cex=3)
 text(0.15,1.2, paste("N =", web.ha[3,1]), cex=1.5) 
 text(0.5,1.2, paste("N =", web.ha[3,2]), cex=1.5)
-text(0.755,1.2, "*", cex=3)
-text(0.785,1.2, "*", cex=3)
-text(0.83,1.2, "*", cex=3, col="white")
+text(0.745,1.2, "*", cex=3)
+text(0.772,1.2, "*", cex=3)
+text(0.817,1.2, "*", cex=3, col="white")
 text(0.91,1.2, paste("N =", web.ha[3,4]), cex=1.5)
-text(1.035,1.2, "*", cex=3)
-text(1.065,1.2, "*", cex=3)
-text(1.11,1.2, paste("N =", web.ha[8,4]), cex=1.5)
-text(1.2,1.2, paste("N =", web.ha[9,4]), cex=1.5)
+text(1.02,1.2, "*", cex=3)
+text(1.05,1.2, "*", cex=3)
+text(1.09,1.2, paste("N =", web.ha[8,4]), cex=1.5)
+text(1.135,1.2, "*", cex=3)
+text(1.2,1.2, paste("N =", web.ha[10,4]), cex=1.5)
 legend("bottom", legend=name.legend, fill=col.legend, bty="n", border="black",ncol=6, xpd=T, cex=1.5)
 dev.off()
 ```
+
+```{r}
+web.ha[,]
+```
+
 
 ```{r publication barplot simplified}
 #unique(melt.comms$variable)
@@ -1491,7 +1445,7 @@ ggplot(melt.comms.guts, aes(sample_type,value)) +
   scale_y_continuous(expand=c(0,0)) +
   scale_fill_manual(values=col.barplot, name = "") +
   xlab("") +
-  ylab("DNA reads ratio") +
+  ylab("DNA ratio") +
   coord_flip() +
   facet_grid(county*time~.) +
   theme_bw() +

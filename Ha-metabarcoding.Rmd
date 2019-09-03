@@ -890,12 +890,14 @@ info.guts = ratio.guts[,colnames(ratio.guts) %in% c("sample_id","sample_type","p
 ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 ratio.guts = ratio.guts/rowSums(ratio.guts)
 
-ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("Harmonia_axyridis","Homo_sapiens"))]
+ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("Harmonia_axyridis","Homo_sapiens","Dinocampus_coccinellae"))]
 
 ratio.guts = cbind(ratio.guts, info.guts)
 rownames(ratio.guts) = ratio.guts$sample_id
 
-ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,1:11]) > 0) #15
+colnames(ratio.guts)
+
+ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]) > 0)
 
 matrix.ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 matrix.ratio.guts$Dinocampus_coccinellae = 0
@@ -1220,7 +1222,6 @@ This last chunk is only to create the base for the summary table presented in su
 ```{r generating data summary table}
 guts.summary = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
 
-colnames(ratio.sp.comms)
 comms.summary = as.data.frame(ratio.sp.comms[,!c(colnames(ratio.sp.comms) %in% c("sample_id"))] %>% group_by(sample_type,time,county,site,pcr) %>% summarise_all(list(sum)))
 
 full.data = full_join(guts.summary, comms.summary)
@@ -1238,10 +1239,6 @@ final.data = t(final.data)
 
 #Saving final output
 write.csv(final.data, "R_outputs/Data_summary_table.csv")
-```
-
-```{r}
-View(guts.summary)
 ```
 
 # 9. Publication plot

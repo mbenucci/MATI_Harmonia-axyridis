@@ -885,28 +885,33 @@ ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% "Hemiptera")]
 PERMANOVA analysis on the gut contents show a significant influence from all variables (season: p-value=0.0001; county: p-value=0.004); but not both (p-value=0.0883). It worths mentioning though that the residual values for these samples are all high; so we can assume that the influence of the low number of samples positive for prey taxa could have skewed the results.
 
 
-```{r permanova guts reads}
+```{r setting frames for permanova of guts reads}
 info.guts = ratio.guts[,colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county")]
 ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 ratio.guts = ratio.guts/rowSums(ratio.guts)
+ratio.guts[is.na(ratio.guts)] <- 0
 
-ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("Harmonia_axyridis","Homo_sapiens","Dinocampus_coccinellae"))]
-
+ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("Harmonia_axyridis","Homo_sapiens"))]
 ratio.guts = cbind(ratio.guts, info.guts)
-rownames(ratio.guts) = ratio.guts$sample_id
-
-colnames(ratio.guts)
 
 ratio.guts = subset(ratio.guts, subset=rowSums(ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]) > 0)
 
-matrix.ratio.guts = ratio.guts[,!c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))]
-matrix.ratio.guts$Dinocampus_coccinellae = 0
+# splitting potential preys from parasitoids
+ratio.prey = ratio.guts[,!c(colnames(ratio.guts) %in% c("Dinocampus_coccinellae"))]
+ratio.paras = ratio.guts[,c(colnames(ratio.guts) %in% c("sample_id","sample_type","pcr","site","time","county","Dinocampus_coccinellae"))]
 
+rownames(ratio.prey) = ratio.prey$sample_id
+rownames(ratio.paras) = ratio.paras$sample_id
+```
+
+```{r running permanova}
+colnames(ratio.prey)
+matrix.ratio.guts = ratio.prey[,!c(colnames(ratio.prey) %in% c("sample_id","sample_type","pcr","site","time","county"))]
 matrix.ratio.guts[,][matrix.ratio.guts[] > 0] = 1
 
-fact_county.g = matrix(c(ratio.guts$county), ncol=1) 
-fact_time.g = matrix(c(ratio.guts$time), ncol=1)
-fact_all.g = matrix(c(ratio.guts$county, ratio.guts$time), ncol=2)
+fact_county.g = matrix(c(ratio.prey$county), ncol=1) 
+fact_time.g = matrix(c(ratio.prey$time), ncol=1)
+fact_all.g = matrix(c(ratio.prey$county, ratio.prey$time), ncol=2)
 
 dist.guts = vegdist(matrix.ratio.guts, method="euclidean")
 
@@ -933,8 +938,12 @@ dev.off()
 From the rarefaction curves of both species Richness and Shannon diversity extrapolated from the gut contents analysis it appear that more individuals might need to be collected in order to increase the number of detections from the gut contents.
 
 ```{r rarefaction curves on guts, include=T, echo=F}
-abund.guts = as.data.frame(ratio.guts)
+abund.guts = as.data.frame(ratio.prey)
 abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))][abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
+
+abund.paras = as.data.frame(ratio.paras)
+abund.paras[,!c(colnames(abund.paras) %in% c("sample_id","sample_type","pcr","site","time","county"))][abund.paras[,!c(colnames(abund.paras) %in% c("sample_id","sample_type","pcr","site","time","county"))] > 0] <- 1
+
 
 raref.guts = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
 
@@ -962,7 +971,9 @@ ggiNEXT(raref.guts_inext) +
 Tripartite network
 
 ```{r tripartite gut contents}
-network.guts = as.data.frame(abund.guts[,!c(colnames(abund.guts) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
+network.full = full_join(abund.guts, abund.paras)
+
+network.guts = as.data.frame(network.full[,!c(colnames(network.full) %in% c("sample_id","sample_type","pcr","site"))] %>% group_by(time, county) %>% summarise_all(funs(sum)))
 
 network.guts$county = gsub("rd{1}|[a-z]{5}$", "", network.guts$county)
 rownames(network.guts) = paste(network.guts$county, network.guts$time)
@@ -1381,7 +1392,7 @@ col.prey=c("cyan3","orchid","cyan3","tan4","cyan3","darkolivegreen4","tan4","kha
 
 ```{r publication tripartite network plot}
 png("R_images/publication_tripartite_network.png", width=6000, height=4000, res=300)
-plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, high.xoff = 0.1, low.xoff = 0.1, low.y=1.54, low.spacing=0.03, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
+plotweb(web.dc, method="normal", labsize=3, y.lim=c(-0.5,2.7), x.lim=c(0,1.25), adj.high=c(0,-0.5), adj.low=c(0.5,-0.1), y.width.low=0.05, y.width.high=0.1, high.y=2.5, high.xoff = 0.1, low.xoff = 0.1, low.y=1.54, low.spacing=0.025, arrow="down", col.low="transparent", bor.col.low="transparent", col.interaction=c("orange","yellow","blue","red"), low.plot=T, empty=F)
 plotweb(web.ha, method="normal", labsize=3,  text.rot=90, y.width.low=0.1, y.width.high=0.09,	high.y=1.5, low.y=0.5, low.lab.dis=0.05, high.lablength=0, high.spacing=0.077, low.spacing=0.03, col.high="transparent",  col.interaction=c("orange","yellow","blue","red"), col.low=col.prey, add=T, empty=F)
 #web.dc interactions
 text(0.2,2.3, paste("N =", web.dc[1,1]), cex=1.5)
@@ -1404,11 +1415,6 @@ text(1.2,1.2, paste("N =", web.ha[10,4]), cex=1.5)
 legend("bottom", legend=name.legend, fill=col.legend, bty="n", border="black",ncol=6, xpd=T, cex=1.5)
 dev.off()
 ```
-
-```{r}
-web.ha[,]
-```
-
 
 ```{r publication barplot simplified}
 #unique(melt.comms$variable)

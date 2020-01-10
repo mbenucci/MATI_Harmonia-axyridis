@@ -80,46 +80,52 @@ All shapefiles were downloaded from:
 
 # UK map
 uk_map = fortify(readOGR("map/shapefiles/GB_IRworld.shp"))
-yor_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/TA_Woodland.shp"))
-yor2_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/TA_Road.shp"))
-oxf_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SU_Woodland.shp"))
-#oxf2_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SU_Road.shp"))
-oxf3_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SP_Woodland.shp"))
-#oxf4_map = fortify(readOGR("../../../../GIS/open-map-local_2518854/SP_Road.shp"))
+counties = fortify(readOGR("map/shapefiles/Boundary-line-ceremonial-counties.shp"))
 ```
 
-To load the OS Greenspace shapefiles takes quite some time. So if you, like me, don't have a super-duper laptop and don't have time to load on HPC or similar, just grab a coffee. Lucky side is that it's UK-wide, so you need to load it once for all maps.
+Counties shapefiles unfortunately does not load the associated metadata with the name of the cerimonial counties. Regarding the one for this study with need to go with the ID variable in the Counties dataframe.
 
-```{r greenspace}
-green_map = fortify(readOGR("../../../../GIS/open-greenspace_3054882/GB_GreenspaceSite.shp"))
+* counties$id == 9 corresponds to the East Riding of Yorkshire
+* counties$id == 26 corresponds to the Oxfordshire
+
+```{r defining counties}
+unique(counties$id)
 ```
 
-```{r}
+#NOTE:
+To add zoom in of the counties + labels of sites.
+
+```{r map}
+png("map/Ha_sampling_map.png", height = 4000, width = 4000, units="px", res=300)
 ggplot(uk_map) +
   geom_polygon(aes(long,lat,group=group), fill=NA, color="black") +
-  geom_point(data=yorks_sites, aes(X,Y), shape=21, color="black", fill="black") +
+  geom_polygon(data=counties[counties$id == 9,], aes(long,lat,group=group), fill=NA, color="black") +
+  geom_polygon(data=counties[counties$id == 26,], aes(long,lat,group=group), fill=NA, color="black") +
+  geom_point(data=yorks_sites, aes(X,Y), shape=21, color="red", fill="red") +
   geom_point(data=oxfo_sites, aes(X,Y), shape=21, color="black", fill="black") +
   coord_fixed(1) +
-  theme_void()
-
-png("map/test.png", height = 4000, width = 4000, units="px", res=300)
-ggplot(yor_map) +
-  geom_polygon(data=green_map, aes(long, lat, group=group), fill="green") +
-  geom_polygon(data=yor_map, aes(long,lat, group=group)) +
-  geom_path(data=yor2_map, aes(x=long, y=lat, group=group)) +
-  geom_point(data=yorks_sites, aes(X,Y), shape=21, color="red", fill="red") +
-  coord_fixed(1, xlim=c(500000,510000), ylim=c(429000,440000))
+  theme_void() +
+  north(uk_map, symbol=12, location="bottomleft")
 dev.off()
 
-png("map/test_2.png", height = 4000, width = 4000, units="px", res=300)
-ggplot(oxf_map) +
-  geom_polygon(data=green_map, aes(long, lat, group=group), fill="green") +
-  geom_polygon(data=oxf_map, aes(long,lat, group=group)) +
-  geom_polygon(data=oxf3_map, aes(long,lat, group=group)) +
-  #geom_path(data=oxf2_map, aes(x=long, y=lat, group=group)) +
-  #geom_path(data=oxf4_map, aes(x=long, y=lat, group=group)) +
-  geom_point(data=oxfo_sites, aes(X,Y), shape=21, color="red", fill="red") +
-  coord_fixed(1, xlim=c(441000,469000), ylim=c(178000,206000))
-dev.off()
+#ggsn::scalebar(location="bottomleft", x.min=-0.3425, x.max=-0.33, y.min=52.286, y.max=52.289, dist=600, dist_unit="m", st.dist=0.2, height=0.15, transform=T) +
 ```
 
+```{r map session info}
+sink("mapping_session_analysis.txt")
+sessionInfo()
+citation()
+sink()
+```
+
+```{r packages citation}
+sink("mapping_packages_citations.txt")
+for (p in pack.list){
+ print(citation(p))
+}
+sink()
+```
+
+```{r end}
+print("end")
+```

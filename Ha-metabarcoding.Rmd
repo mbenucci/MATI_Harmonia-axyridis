@@ -1507,6 +1507,8 @@ ggplot(melt.comms.guts, aes(sample_type,value)) +
 dev.off()  
 ```
 
+# Log files
+
 ```{r log session info}
 sink("log_session_analysis.txt")
 sessionInfo()
